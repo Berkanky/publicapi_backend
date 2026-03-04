@@ -1,0 +1,27 @@
+services:
+  api:
+    build: .
+    image: publicapi_backend_image
+    container_name: publicapi_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:3005:3000"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    dns_opt:
+      - ndots:0
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - publicapi_net
+
+networks:
+  publicapi_net:
+    external: true

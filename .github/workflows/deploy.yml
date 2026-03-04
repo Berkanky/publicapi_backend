@@ -1,0 +1,29 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          command_timeout: 30m
+          script: |
+            set -e
+            echo "APP_DIR=${{ secrets.APP_DIR }}"
+            ls -la "${{ secrets.APP_DIR }}" || true
+            cd "${{ secrets.APP_DIR }}"
+            pwd
+            git rev-parse --is-inside-work-tree
+            git fetch --all
+            git reset --hard origin/main
+            docker compose up -d --build
+            docker compose ps
