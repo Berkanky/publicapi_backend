@@ -678,7 +678,7 @@ async function update_phone_number(hashed_format_number_e164){
 };
 
 app.post(
-  "/phone-number-detail",
+  "/phone/lookup",
   rate_limiter,
   create_session_id,
   set_service_action_name({action: 'phonenumber-detail'}),
@@ -737,7 +737,7 @@ app.post(
 
       var location = await geocoder(fixed_line_number) || null;
       var carrier_name = await carrier(fixed_line_number) || null; 
-      var tzones = await timezones(fixed_line_number) || null;
+      var tzones = await timezones(fixed_line_number) || [];
 
       var response = {
         input: {

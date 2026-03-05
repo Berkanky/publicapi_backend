@@ -34,7 +34,7 @@ async function create_audit_log(req, res, next) {
           provider: ISSUER,
         };
 
-        if( req.path === '/phone-number-detail' ) new_audit_log_obj.phone_number_hash = req?.phone_number_hash || null;
+        if( req.path === '/phone/lookup' ) new_audit_log_obj.phone_number_hash = req?.phone_number_hash || null;
 
         var new_audit_log = new auditlog(new_audit_log_obj);
         await new_audit_log.save();

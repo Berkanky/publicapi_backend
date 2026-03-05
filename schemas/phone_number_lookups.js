@@ -29,6 +29,7 @@ var phone_number_schema = new mongoose.Schema({
     },
     query_count:{
         type: Number,
+        default: 0,
         required: false
     },
     created_date: {
