@@ -1,34 +1,57 @@
-var ipRequestCounts = new Map();
+var ip_request_counts = new Map();
+
+var LIMIT = 10;
+var TIME_FRAME = 60000;
+
+function cleanup() {
+  var now = Date.now();
+
+  for (var [ip, data] of ip_request_counts) {
+    if (now - data.start_time > TIME_FRAME) {
+      ip_request_counts.delete(ip);
+    }
+  }
+}
+
+setInterval(cleanup, 60000);
 
 async function rate_limiter(req, res, next) {
-  
-  var LIMIT = 10;
-  var TIME_FRAME = 60000;
 
   var ip = req.ip;
-  var currentTime = Date.now();
+  var now = Date.now();
 
-  if (!ipRequestCounts.has(ip)) {
+  var ip_data = ip_request_counts.get(ip);
 
-    ipRequestCounts.set(ip, { count: 1, lastRequest: currentTime });
+  if (!ip_data) {
+
+    ip_request_counts.set(ip, {
+      count: 1,
+      start_time: now
+    });
+
     return next();
   }
 
-  var ipData = ipRequestCounts.get(ip);
+  if (now - ip_data.start_time > TIME_FRAME) {
 
-  if (currentTime - ipData.lastRequest > TIME_FRAME) {
-    
-    ipRequestCounts.set(ip, { count: 1, lastRequest: currentTime });
+    ip_request_counts.set(ip, {
+      count: 1,
+      start_time: now
+    });
+
     return next();
   }
 
-  if (ipData.count >= LIMIT) return res.status(429).json({ message: " Too many requests! Please try again later." });
+  if (ip_data.count >= LIMIT) {
+    return res.status(429).json({
+      message: "Too many requests. Please try again later."
+    });
+  }
 
-  ipData.count += 1;
-  ipData.lastRequest = currentTime;
-  ipRequestCounts.set(ip, ipData);
-  
+  ip_data.count += 1;
+  ip_request_counts.set(ip, ip_data);
+
   return next();
-};
+}
 
 module.exports = rate_limiter;

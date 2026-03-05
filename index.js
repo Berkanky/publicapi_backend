@@ -91,8 +91,15 @@ mongoose
     return process.exit(1);
   });
 
-var dev_origins = [];
-var prod_origins = [];
+var dev_origins = [
+  "http://localhost:3000",
+  "http://localhost:5173"
+];
+
+var prod_origins = [
+  "https://rapidapi.com",
+  "https://www.rapidapi.com"
+];
 
 var allowedOrigins = (NODE_ENV === 'production' ? prod_origins : dev_origins).filter(Boolean);
 
@@ -102,7 +109,10 @@ var corsOptions = {
     if (NODE_ENV === "production") {
 
       if (!origin) return callback(null, true);
-      if (allowedOrigins.some(function (item) { return item === origin })) return callback(null, true);
+
+      if (allowedOrigins.some(function (item) { return item === origin })) {
+        return callback(null, true);
+      }
 
       return callback(new Error("CORS: This origin is not authorized."));
     }
@@ -110,7 +120,14 @@ var corsOptions = {
     return callback(null, true);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'If-None-Match'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Accept',
+    'If-None-Match',
+    'X-RapidAPI-Key',
+    'X-RapidAPI-Host'
+  ],
   credentials: true,
   optionsSuccessStatus: 204,
   preflightContinue: false
@@ -152,6 +169,9 @@ app.use(create_audit_log);
 app.use("/", routes);
 
 var server = http.createServer(app);
+server.setTimeout(5000);
+server.headersTimeout = 6000;
+server.requestTimeout = 5000;
 
 app.use((req, res) => {
   return res.status(404).json({ error: 'Not Found.' });
