@@ -663,140 +663,294 @@ function sanitize_country_iso_code(v) {
   return v;
 };
 
-async function update_phone_number(hashed_format_number_e164){
-
-  var phone_number_filter = { phone_number_hash: hashed_format_number_e164 };
-  var phone_number_update = {
-    $set: {
-      last_query_date: new Date()
+async function update_phone_number(req, response){
+  await phonenumber.findOneAndUpdate(
+    { phone_number_hash: req.phone_number_hash },
+    {
+      $set: {
+        last_query_date: new Date()
+      },
+      $inc: {
+        query_count: 1
+      },
+      $setOnInsert: {
+        phone_number_hash: req.phone_number_hash,
+        country_iso_code: response?.input?.sanitized_country_iso_code,
+        region_code: response?.core?.region_code,
+        carrier_name: response?.enrichment?.carrier_name,
+        number_type_code: response?.core?.number_type_code,
+        tzones: response?.enrichment?.tzones,
+        created_date: new Date()
+      }
     },
-    $inc: { query_count: 1 }
-  };
-
-  var updated_phone_number_result = await phonenumber.findOneAndUpdate(phone_number_filter, phone_number_update);
-  return updated_phone_number_result;
+    { upsert: true, new: true }
+  );
 };
 
+async function resolve_phone_lookup(req){
+
+  var { phone_number, country_iso_code } = req.body;
+
+  var sanitized_phone_number = sanitize_phone_input(phone_number);
+  var sanitized_country_iso_code = sanitize_country_iso_code(country_iso_code);
+
+  var phone_number_raw_detail = phoneUtil.parseAndKeepRawInput(sanitized_phone_number, sanitized_country_iso_code);
+
+  var is_valid_for_region = phoneUtil.isValidNumberForRegion(phone_number_raw_detail, sanitized_country_iso_code);
+  if( !is_valid_for_region ) return { message:' Phone number is not valid for the provided region.', success: false, http_status: 422, response: {} };
+
+  var format_number_e164 = phoneUtil.format(phone_number_raw_detail, PNF.E164);
+
+  var hashed_format_number_e164 = sha_256(format_number_e164);
+  req.phone_number_hash = hashed_format_number_e164;
+
+  var cache_key ='phone_lookup:' + hashed_format_number_e164;
+
+  var cached_response = await server_cache.get(cache_key);
+  if( cached_response ) return { success: true, http_status: 200, cache: "HIT", response: cached_response };
+
+  var country_code = phone_number_raw_detail.getCountryCode();
+  var national_number = phone_number_raw_detail.getNationalNumber();
+
+  var country_code_source = phone_number_raw_detail.getCountryCodeSource();
+  var country_code_source_detail = map_country_code_source(Number(country_code_source));
+
+  var raw_input = phone_number_raw_detail.getRawInput();
+
+  var is_possible_number = phoneUtil.isPossibleNumber(phone_number_raw_detail);
+  var is_valid_number = phoneUtil.isValidNumber(phone_number_raw_detail);
+  var region_code = phoneUtil.getRegionCodeForNumber(phone_number_raw_detail);
+
+  var number_type = phoneUtil.getNumberType(phone_number_raw_detail);
+  var number_type_detail = map_number_type(number_type);
+
+  var format_number = phoneUtil.formatInOriginalFormat(phone_number_raw_detail, sanitized_country_iso_code);
+  var format_number_national = phoneUtil.format(phone_number_raw_detail, PNF.NATIONAL);
+  var format_number_international = phoneUtil.format(phone_number_raw_detail, PNF.INTERNATIONAL);
+
+  var fixed_line_number = parse_phone_number_from_string(format_number_international);
+
+  var location = await geocoder(fixed_line_number) || null;
+  var carrier_name = await carrier(fixed_line_number) || null; 
+  var tzones = await timezones(fixed_line_number) || [];
+
+  var response = {
+    input: {
+      phone_number: raw_input,
+      sanitized_phone_number: sanitized_phone_number,
+      country_iso_code: country_iso_code,
+      sanitized_country_iso_code: sanitized_country_iso_code
+    },
+    core: {
+      e164: format_number_e164,
+      country_calling_code: country_code,
+      region_code: region_code,
+      national_number: national_number,
+      is_possible: is_possible_number,
+      is_valid: is_valid_number,
+      number_type_code: number_type,
+      number_type: number_type_detail,
+      country_source_code: country_code_source,
+      country_source: country_code_source_detail,
+    },
+    formats: {
+      national: format_number_national,
+      international: format_number_international,
+      original: format_number
+    },
+    enrichment: {
+      is_valid: is_valid_for_region,
+      location: location,
+      carrier_name: carrier_name,
+      tzones: tzones
+    }
+  };
+
+  await server_cache.set(cache_key, response, 86400);
+
+  return { success: true, http_status: 200, cache: "MISS", response: response };
+};
+
+// -> /phone/lookup
 app.post(
   "/phone/lookup",
   rate_limiter,
   create_session_id,
-  set_service_action_name({action: 'phonenumber-detail'}),
+  set_service_action_name({action: 'phone-lookup'}),
   async(req, res) => {
-
-    var { phone_number, country_iso_code } = req.body;
 
     var { error } = phone_number_detail_service_schema.validate(req.body, { abortEarly: false });
     if( error) return res.status(400).json({errors: error.details.map(detail => detail.message), success: false });
 
     try{
 
-      var sanitized_phone_number = sanitize_phone_input(phone_number);
-      var sanitized_country_iso_code = sanitize_country_iso_code(country_iso_code);
+      var { success, http_status, cache, response } = await resolve_phone_lookup(req);
+      
+      if( success === true ) await update_phone_number(req, response);
 
-      var phone_number_raw_detail = phoneUtil.parseAndKeepRawInput(sanitized_phone_number, sanitized_country_iso_code);
+      res.set("X-Cache", cache);
+      return res.status(http_status).json({ success: success, out_response: response });
+    }catch(err){
+      console.error(err);
+      return res.status(500).json({ message:' phone-lookup service error. ', success: false });
+    }
+  }
+);
 
-      var is_valid_for_region = phoneUtil.isValidNumberForRegion(phone_number_raw_detail, sanitized_country_iso_code);
-      if( !is_valid_for_region ) return res.status(422).json({ message:' Phone number is not valid for the provided region.', success: false });
+// -> /phone/validate
+app.post(
+  "/phone/validate",
+  rate_limiter,
+  create_session_id,
+  set_service_action_name({action: 'phone-validate'}),
+  async(req, res) => {
 
-      var format_number_e164 = phoneUtil.format(phone_number_raw_detail, PNF.E164);
+    var { error } = phone_number_detail_service_schema.validate(req.body, { abortEarly: false });
+    if( error) return res.status(400).json({errors: error.details.map(detail => detail.message), success: false });
 
-      var hashed_format_number_e164 = sha_256(format_number_e164);
-      req.phone_number_hash = hashed_format_number_e164;
+    try{
+      var { success, http_status, cache, response, message } = await resolve_phone_lookup(req);
+      
+      if( http_status === 422 ) return res.status(http_status).json({ message, success, response });
 
-      var cache_key = 'phone_detail:' + hashed_format_number_e164;
-      var cached_response = await server_cache.get(cache_key);
-      if( cached_response ) {
+      if( success === true ) await update_phone_number(req, response);
 
-        await update_phone_number(hashed_format_number_e164);
-
-        res.set("X-Cache", "HIT");
-        return res.status(200).json({ success: true, response: cached_response });
-      }
-
-      var country_code = phone_number_raw_detail.getCountryCode();
-      var national_number = phone_number_raw_detail.getNationalNumber();
-
-      var country_code_source = phone_number_raw_detail.getCountryCodeSource();
-      var country_code_source_detail = map_country_code_source(Number(country_code_source));
-
-      var raw_input = phone_number_raw_detail.getRawInput();
-
-      var is_possible_number = phoneUtil.isPossibleNumber(phone_number_raw_detail);
-      var is_valid_number = phoneUtil.isValidNumber(phone_number_raw_detail);
-      var region_code = phoneUtil.getRegionCodeForNumber(phone_number_raw_detail);
-
-      var number_type = phoneUtil.getNumberType(phone_number_raw_detail);
-      var number_type_detail = map_number_type(number_type);
-
-      var format_number = phoneUtil.formatInOriginalFormat(phone_number_raw_detail, sanitized_country_iso_code);
-      var format_number_national = phoneUtil.format(phone_number_raw_detail, PNF.NATIONAL);
-      var format_number_international = phoneUtil.format(phone_number_raw_detail, PNF.INTERNATIONAL);
-
-      var fixed_line_number = parse_phone_number_from_string(format_number_international);
-
-      var location = await geocoder(fixed_line_number) || null;
-      var carrier_name = await carrier(fixed_line_number) || null; 
-      var tzones = await timezones(fixed_line_number) || [];
-
-      var response = {
+      var phone_validate_response = {
         input: {
-          phone_number: raw_input,
-          sanitized_phone_number: sanitized_phone_number,
-          country_iso_code: country_iso_code,
-          sanitized_country_iso_code: sanitized_country_iso_code
+            phone_number: response?.input?.phone_number,
+            sanitized_phone_number: response?.input?.sanitized_phone_number,
+            country_iso_code: response?.input?.country_iso_code,
+            sanitized_country_iso_code: response?.input?.sanitized_country_iso_code
         },
-        core: {
-          e164: format_number_e164,
-          country_calling_code: country_code,
-          region_code: region_code,
-          national_number: national_number,
-          is_possible: is_possible_number,
-          is_valid: is_valid_number,
-          number_type_code: number_type,
-          number_type: number_type_detail,
-          country_source_code: country_code_source,
-          country_source: country_code_source_detail,
-        },
-        formats: {
-          national: format_number_national,
-          international: format_number_international,
-          original: format_number
-        },
-        enrichment: {
-          is_valid: is_valid_for_region,
-          location: location,
-          carrier_name: carrier_name,
-          tzones: tzones
+        output: {
+            is_possible: response?.core?.is_possible,
+            is_valid: response?.core?.is_valid
         }
       };
 
-      await server_cache.set(cache_key, response, 86400);
-
-      var update_result = await update_phone_number(hashed_format_number_e164);
-      if( !update_result ) {
-
-        var new_phone_number_obj = {
-          phone_number_hash: hashed_format_number_e164,
-          country_iso_code: sanitized_country_iso_code,
-          region_code: region_code,
-          carrier_name: carrier_name,
-          number_type_code: number_type,
-          tzones: tzones,
-          query_count: 1,
-          created_date: new Date(),
-          last_query_date: new Date()
-        };
-
-        var new_phone_number = new phonenumber(new_phone_number_obj);
-        await new_phone_number.save();
-      }
-
-      res.set("X-Cache", "MISS");
-      return res.status(200).json({ success: true, response });
+      res.set("X-Cache", cache);
+      return res.status(http_status).json({ success: success, out_response: phone_validate_response });
     }catch(err){
       console.error(err);
-      return res.status(500).json({ message:' phonenumber-detail service error. ', success: false });
+      return res.status(500).json({ message:' phone-validate service error. ', success: false });
+    }
+  }
+);
+
+// -> /phone/carrier
+app.post(
+  "/phone/carrier",
+  rate_limiter,
+  create_session_id,
+  set_service_action_name({action: 'phone-carrier'}),
+  async(req, res) => {
+
+    var { error } = phone_number_detail_service_schema.validate(req.body, { abortEarly: false });
+    if( error) return res.status(400).json({errors: error.details.map(detail => detail.message), success: false });
+
+    try{
+
+      var { success, http_status, cache, response } = await resolve_phone_lookup(req);
+      
+      if( success === true ) await update_phone_number(req, response);
+
+      var response = {
+        input: {
+            phone_number: response?.input?.phone_number,
+            sanitized_phone_number: response?.input?.sanitized_phone_number,
+            country_iso_code: response?.input?.country_iso_code,
+            sanitized_country_iso_code: response?.input?.sanitized_country_iso_code
+        },
+        output: {
+          carrier: response?.enrichment?.carrier_name,
+          number_type: response?.core?.number_type
+        }
+      };
+
+      res.set("X-Cache", cache);
+      return res.status(http_status).json({ success: success, out_response: response });
+    }catch(err){
+      console.error(err);
+      return res.status(500).json({ message:' phone-carrier service error. ', success: false });
+    }
+  }
+);
+
+// -> /phone/timezone
+app.post(
+  "/phone/timezone",
+  rate_limiter,
+  create_session_id,
+  set_service_action_name({action: 'phone-timezone'}),
+  async(req, res) => {
+
+    var { error } = phone_number_detail_service_schema.validate(req.body, { abortEarly: false });
+    if( error) return res.status(400).json({errors: error.details.map(detail => detail.message), success: false });
+
+    try{
+
+      var { success, http_status, cache, response } = await resolve_phone_lookup(req);
+      
+      if( success === true ) await update_phone_number(req, response);
+
+      var response = {
+        input: {
+            phone_number: response?.input?.phone_number,
+            sanitized_phone_number: response?.input?.sanitized_phone_number,
+            country_iso_code: response?.input?.country_iso_code,
+            sanitized_country_iso_code: response?.input?.sanitized_country_iso_code
+        },
+        output: {
+          timezone: response?.enrichment?.tzones,
+        }
+      };
+
+      res.set("X-Cache", cache);
+      return res.status(http_status).json({ success: success, out_response: response });
+    }catch(err){
+      console.error(err);
+      return res.status(500).json({ message:' phone-timezone service error. ', success: false });
+    }
+  }
+);
+
+// -> /phone/format
+app.post(
+  "/phone/format",
+  rate_limiter,
+  create_session_id,
+  set_service_action_name({action: 'phone-format'}),
+  async(req, res) => {
+
+    var { error } = phone_number_detail_service_schema.validate(req.body, { abortEarly: false });
+    if( error) return res.status(400).json({errors: error.details.map(detail => detail.message), success: false });
+
+    try{
+
+      var { success, http_status, cache, response } = await resolve_phone_lookup(req);
+      
+      if( success === true ) await update_phone_number(req, response);
+
+      var response = {
+        input: {
+            phone_number: response?.input?.phone_number,
+            sanitized_phone_number: response?.input?.sanitized_phone_number,
+            country_iso_code: response?.input?.country_iso_code,
+            sanitized_country_iso_code: response?.input?.sanitized_country_iso_code
+        },
+        output: {
+          e164: response?.core?.e164,
+          national: response?.formats?.national,
+          international: response?.formats?.international,
+          original: response?.formats?.original,
+        }
+      };
+
+      res.set("X-Cache", cache);
+      return res.status(http_status).json({ success: success, out_response: response });
+    }catch(err){
+      console.error(err);
+      return res.status(500).json({ message:' phone-format service error. ', success: false });
     }
   }
 );
