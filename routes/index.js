@@ -704,7 +704,7 @@ app.post(
       var hashed_format_number_e164 = sha_256(format_number_e164);
       req.phone_number_hash = hashed_format_number_e164;
 
-      var cache_key = format_number_e164;
+      var cache_key = 'phone_detail:' + hashed_format_number_e164;
       var cached_response = await server_cache.get(cache_key);
       if( cached_response ) {
 

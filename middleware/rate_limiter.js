@@ -2,7 +2,7 @@ var ipRequestCounts = new Map();
 
 async function rate_limiter(req, res, next) {
   
-  var LIMIT = 150;
+  var LIMIT = 10;
   var TIME_FRAME = 60000;
 
   var ip = req.ip;
