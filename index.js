@@ -19,6 +19,9 @@ const mongoose = require("mongoose");
 var create_audit_log = require("./insert_operations/create_audit_log");
 var shut_down_server_in_safety_mode = require("./functions/shut_down_server_in_safety_mode");
 
+//middleware
+var calculate_service_response_ms = require("./middleware/calculate_service_response_ms");
+
 //Routes.
 var routes = require("./routes/index");
 
@@ -166,6 +169,7 @@ app.use(express.urlencoded({ limit: '100kb', extended: true }));
 app.use(express.static('public', { dotfiles: 'ignore' }));
 
 app.use(create_audit_log);
+app.use(calculate_service_response_ms);
 app.use("/", routes);
 
 var server = http.createServer(app);
