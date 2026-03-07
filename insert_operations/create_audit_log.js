@@ -1,6 +1,5 @@
 var auditlog = require("../schemas/audit_log");
 
-var { ObjectId } = require('mongodb');
 var onFinished = require('on-finished');
 
 //Şifreleme.
@@ -20,7 +19,6 @@ async function create_audit_log(req, res, next) {
       if( req.path !== '/health'  ){
         
         var new_audit_log_obj = {   
-          user_id: req?.user_id ? new ObjectId(req.user_id) : null,
           request_id: req?.id || null,
           session_id: req?.session_id ? sha_256(req.session_id) : null,
           action: req?.action_name || null,

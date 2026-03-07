@@ -1,9 +1,6 @@
 var mongoose = require("mongoose");
 
 var audit_log_schema = new mongoose.Schema({
-    user_id: {
-        type: String
-    },
     request_id: {
         type: String,
         default: null

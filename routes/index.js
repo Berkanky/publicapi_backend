@@ -20,7 +20,8 @@ var aes_256_gcm_decrypt = require("../encryption_modules/aes_256_gcm_decrypt");
 var sha_256 = require("../encryption_modules/sha_256");
 
 var server_cache = require("../cache");
-/* 
+
+/*
   await server_cache.set(key, data, timeoutms);
   await server_cache.del(key);
   await server_cache.get(key);
@@ -56,7 +57,6 @@ var phoneUtil = require('google-libphonenumber').PhoneNumberUtil.getInstance();
 var libphonenumber_js = require("libphonenumber-js");
 var parse_phone_number_from_string = libphonenumber_js.parsePhoneNumberFromString;
 var { geocoder, carrier, timezones } = require('libphonenumber-geo-carrier');
-const { error } = require("console");
 
 function map_number_type(number_type_code) {
   var m = {
