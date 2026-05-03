@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+var crypto = require('crypto');
 
 var { ENCRYPTION_KEY } = process.env;
 if( !ENCRYPTION_KEY ) throw "ENCRYPTION_KEY required. ";

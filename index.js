@@ -14,6 +14,7 @@ const http = require("http");
 
 const cookieParser = require('cookie-parser');
 const mongoose = require("mongoose");
+const { GridFSBucket } = require('mongodb');
 
 //İnsert Fonksiyonları.
 var create_audit_log = require("./insert_operations/create_audit_log");
@@ -24,6 +25,9 @@ var calculate_service_response_ms = require("./middleware/calculate_service_resp
 
 //Routes.
 var routes = require("./routes/index");
+var email_address_intelligence = require("./email_address_intelligence/index");
+var phone_number_intelligence = require("./phone_number_intelligence/index");
+var file_intelligence = require("./file_intelligence/index");
 
 var { 
   MONGODB_URI, 
@@ -86,6 +90,9 @@ mongoose
   .then(async () => { 
     var app_db = mongoose.connection.db;
     app.locals.db = app_db;
+
+    var files_bucket = new GridFSBucket(app_db, { bucketName: 'files' });
+    app.locals.files_bucket = files_bucket;
 
     console.log("MongoDB connection completed. ");
   })
@@ -170,7 +177,14 @@ app.use(express.static('public', { dotfiles: 'ignore' }));
 
 app.use(create_audit_log);
 app.use(calculate_service_response_ms);
-app.use("/", routes);
+
+app.use(
+  "/", 
+  routes, 
+  email_address_intelligence, 
+  phone_number_intelligence,
+  file_intelligence
+);
 
 var server = http.createServer(app);
 server.setTimeout(5000);

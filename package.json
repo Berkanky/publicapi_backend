@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "bullmq": "^5.71.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
@@ -27,6 +28,9 @@
     "libphonenumber-js": "1.12.31",
     "mongodb": "^7.0.0",
     "mongoose": "^9.1.5",
-    "on-finished": "^2.4.1"
+    "multer": "^2.1.1",
+    "on-finished": "^2.4.1",
+    "openai": "^6.33.0",
+    "psl": "^1.15.0"
   }
 }
