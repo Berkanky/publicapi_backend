@@ -206,7 +206,7 @@ async function resolve_phone_lookup(req){
   return { success: true, http_status: 200, cache: "MISS", response: response };
 };
 
-// -> /phone/lookup
+// -> /phone/lookup //country_iso_code -> 'tr'
 app.post(
   "/phone/lookup",
   rate_limiter,

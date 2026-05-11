@@ -1,5 +1,5 @@
 var Queue = require("bullmq").Queue;
-var bullmq_redis = require("./bullmq_redis");
+var bullmq_redis = require("../bullmq_redis_connection/bullmq_redis");
 
 var file_intelligence_queue = new Queue("file_intelligence_queue", {
     connection: bullmq_redis,

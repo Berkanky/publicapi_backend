@@ -28,6 +28,7 @@ var routes = require("./routes/index");
 var email_address_intelligence = require("./email_address_intelligence/index");
 var phone_number_intelligence = require("./phone_number_intelligence/index");
 var file_intelligence = require("./file_intelligence/index");
+var news_intelligence = require("./news_intelligence/index");
 
 var { 
   MONGODB_URI, 
@@ -106,10 +107,7 @@ var dev_origins = [
   "http://localhost:5173"
 ];
 
-var prod_origins = [
-  "https://rapidapi.com",
-  "https://www.rapidapi.com"
-];
+var prod_origins = [];
 
 var allowedOrigins = (NODE_ENV === 'production' ? prod_origins : dev_origins).filter(Boolean);
 
@@ -183,7 +181,8 @@ app.use(
   routes, 
   email_address_intelligence, 
   phone_number_intelligence,
-  file_intelligence
+  file_intelligence,
+  news_intelligence
 );
 
 var server = http.createServer(app);
