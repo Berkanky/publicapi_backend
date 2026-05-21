@@ -104,7 +104,7 @@ mongoose
     return process.exit(1);
   });
 
-var allowedOrigins = [FRONTEND_URL];
+var allowedOrigins = [FRONTEND_URL, 'https://dev.bt.guru'];
 
 var corsOptions = {
   origin: function (origin, callback) {
