@@ -8,7 +8,11 @@ function generate_secret_key(bytes = 32) {
 };
 
 function generate_refresh_token_pepper() {
-    return crypto.randomBytes(32).toString("hex");
+    var refresh_token_pepper = crypto.randomBytes(32).toString("hex");
+    console.log(" refresh_token_pepper -> " + refresh_token_pepper);
+    return refresh_token_pepper;
 }
+
+generate_refresh_token_pepper();
 
 module.exports = { generate_secret_key, generate_refresh_token_pepper };
