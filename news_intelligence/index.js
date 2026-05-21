@@ -767,19 +767,4 @@ app.post(
     }
 );
 
-//Emakin test servisi
-app.get(
-    "/emakin-test-server",
-    async(req, res) => {
-        try{
-            setTimeout(function () {
-                return res.json({ success: true });
-            }, 70000);
-        }catch(err){
-            console.error(err);
-            return res.status(500).json({ success: false });
-        }
-    }
-);
-
 module.exports = app;
