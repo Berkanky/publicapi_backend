@@ -772,7 +772,6 @@ app.get(
     "/emakin-test-server",
     async(req, res) => {
         try{
-            return res.json({ success: true });
             setTimeout(function () {
                 return res.json({ success: true });
             }, 70000);
