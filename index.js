@@ -36,7 +36,8 @@ var {
   TRUST_PROXY, 
   MONGODB_NAME, 
   BACKEND_VERSION,
-  FRONTEND_URL
+  FRONTEND_URL,
+  ISSUER
 } = process.env;
 
 var PORT = process.env.PORT || 3000;
@@ -47,6 +48,7 @@ if( !NODE_ENV ) throw "NODE_ENV required. ";
 if( !TRUST_PROXY ) throw "TRUST_PROXY required. ";
 if( !MONGODB_URI ) throw "MONGODB_URI required.";
 if( !FRONTEND_URL ) throw "FRONTEND_URL required. ";
+if( !ISSUER ) throw "ISSUER required. ";
 
 app.set('trust proxy', TRUST_PROXY === 'true');
 app.disable('x-powered-by');
@@ -104,8 +106,8 @@ mongoose
     return process.exit(1);
   });
 
-var allowedOrigins = [FRONTEND_URL];
-
+var allowedOrigins = [FRONTEND_URL, ISSUER];
+console.log("allowed origins ->> " + JSON.stringify(allowedOrigins));
 var corsOptions = {
   origin: function (origin, callback) {
 
