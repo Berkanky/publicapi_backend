@@ -39,6 +39,7 @@ var news_intelligence_service_schema = require("../joi_schemas/news_intelligence
 var email_address_verification_schema = require("../joi_schemas/email_address_verification_schema");
 var start_subscribe_cancel_schema = require("../joi_schemas/start_subscribe_cancel_schema");
 var google_login_service_schema = require("../joi_schemas/google_login_service_schema");
+var send_email_address_verification_schema = require("../joi_schemas/send_email_address_verification_schema");
 
 //jwt modülleri
 var create_jwt_token = require("../jwt_modules/create_jwt_token");
@@ -206,18 +207,10 @@ app.post(
     async(req, res) => {
 
         var { 
-            email_address, 
-            start_date, 
-            end_date, 
-            default_locale_code, 
-            category, 
-            page_size,
-            page,
-            sort_by,
-            daily_post
+            email_address
         } = req.body;
 
-        var { error } = news_intelligence_service_schema.validate(req.body, { abortEarly: false });
+        var { error } = send_email_address_verification_schema.validate(req.body, { abortEarly: false });
         if( error) return res.status(400).json({errors: error.details.map(detail => detail.message), success: false });
 
         try{
@@ -255,7 +248,6 @@ app.post(
 
                 var new_subscribe_obj = {
                     email_address: email_address,
-                    default_locale_code: default_locale_code,
                     verified: false,
                     status: 'email verification has been initiated',
                     verification_code: verification_code_hashed,
