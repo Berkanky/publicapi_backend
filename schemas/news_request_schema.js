@@ -1,17 +1,18 @@
 var mongoose = require("mongoose");
 
 var news_request_schema = new mongoose.Schema({
-    email_address: {
-        type: String,
-        required: true
+    subscriber_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: 'subscribers'
     },
     session_id:{
         type: String,
-        required: true
+        required: false
     },
     job_id: {
         type: String,
-        required: true
+        required: false
     },
     start_date:{
         type: Date,
@@ -58,8 +59,6 @@ var news_request_schema = new mongoose.Schema({
         required: true
     }
 });
-
-news_request_schema.index({ session_id: 1 }, { unique: true });
 
 var news_request = mongoose.model("news_request", news_request_schema);
 module.exports = news_request;

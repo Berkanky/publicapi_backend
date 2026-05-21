@@ -35,7 +35,8 @@ var {
   NODE_ENV, 
   TRUST_PROXY, 
   MONGODB_NAME, 
-  BACKEND_VERSION
+  BACKEND_VERSION,
+  FRONTEND_URL
 } = process.env;
 
 var PORT = process.env.PORT || 3000;
@@ -45,6 +46,7 @@ if( !MONGODB_NAME ) throw "Database name not found.";
 if( !NODE_ENV ) throw "NODE_ENV required. ";
 if( !TRUST_PROXY ) throw "TRUST_PROXY required. ";
 if( !MONGODB_URI ) throw "MONGODB_URI required.";
+if( !FRONTEND_URL ) throw "FRONTEND_URL required. ";
 
 app.set('trust proxy', TRUST_PROXY === 'true');
 app.disable('x-powered-by');
@@ -102,14 +104,7 @@ mongoose
     return process.exit(1);
   });
 
-var dev_origins = [
-  "http://localhost:3000",
-  "http://localhost:5173"
-];
-
-var prod_origins = [];
-
-var allowedOrigins = (NODE_ENV === 'production' ? prod_origins : dev_origins).filter(Boolean);
+var allowedOrigins = [FRONTEND_URL];
 
 var corsOptions = {
   origin: function (origin, callback) {

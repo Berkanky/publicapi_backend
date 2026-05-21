@@ -1,9 +1,6 @@
 const Joi = require("joi");
 
 const news_intelligence_service_schema = Joi.object({
-  email_address: Joi.string().required().messages({
-    "any.required": "email_address is required. "
-  }),
   start_date: Joi.string().optional(),
   end_date: Joi.string().optional(),
   default_locale_code: Joi.string().required().messages({
@@ -15,6 +12,7 @@ const news_intelligence_service_schema = Joi.object({
   page_size: Joi.number().optional(),
   page:Joi.number().optional(),
   sort_by:Joi.string().optional(),
+  daily_post: Joi.boolean().optional(),
 });
 
 module.exports = news_intelligence_service_schema;
