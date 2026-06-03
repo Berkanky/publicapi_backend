@@ -29,6 +29,7 @@ var email_address_intelligence = require("./email_address_intelligence/index");
 var phone_number_intelligence = require("./phone_number_intelligence/index");
 var file_intelligence = require("./file_intelligence/index");
 var news_intelligence = require("./news_intelligence/index");
+var route_intelligence = require("./routewise/index");
 
 var { 
   MONGODB_URI, 
@@ -179,7 +180,8 @@ app.use(
   email_address_intelligence, 
   phone_number_intelligence,
   file_intelligence,
-  news_intelligence
+  news_intelligence,
+  route_intelligence
 );
 
 var server = http.createServer(app);
