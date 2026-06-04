@@ -10,11 +10,6 @@ var routewise_request_schema = Joi.object({
         .optional(),
     subscriber_id: Joi.string().hex().length(24).optional(),
 
-    route_description: Joi.string()
-        .trim()
-        .max(500)
-        .optional(),
-
     session_id: Joi.string()
         .trim()
         .max(255)

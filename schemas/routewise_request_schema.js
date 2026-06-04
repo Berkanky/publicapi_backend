@@ -9,9 +9,7 @@ var location_schema = new mongoose.Schema({
         type: Number,
         required: false
     }
-},{
-    _id: false
-});
+},{ _id: false });
 
 var fuel_price_schema = new mongoose.Schema({
     year: {
@@ -26,7 +24,7 @@ var fuel_price_schema = new mongoose.Schema({
         type: Number,
         required: false
     }
-});
+}, { _id: false });
 
 var currency_schema = new mongoose.Schema({
     period: {
@@ -45,7 +43,7 @@ var currency_schema = new mongoose.Schema({
         type: String,
         required: false
     }
-});
+}, { _id: false });
 
 var routewise_request_schema = new mongoose.Schema({
     subscriber_id:{
@@ -61,7 +59,20 @@ var routewise_request_schema = new mongoose.Schema({
         type: String,
         required: false
     },
+    job_id:{
+        type: String,
+        required: false
+    },
     request_hash:{
+        type: String,
+        required: false
+    },
+    
+    currency_hash:{
+        type: String,
+        required: false
+    },
+    fuel_price_hash:{
         type: String,
         required: false
     },
@@ -128,6 +139,11 @@ var routewise_request_schema = new mongoose.Schema({
     alternative_routes_count:{
         type: Number,
         required: false
+    },
+    is_clone:{
+        type: Boolean,
+        required: false,
+        default: false
     }
 });
 
