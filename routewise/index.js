@@ -21,12 +21,14 @@ var format_date = require("../functions/format_date");
 var normalize_google_compute_routes_distance_details = require("../functions/normalize_google_compute_routes_distance_details");
 var get_week_bucket = require("../functions/get_week_bucket");
 var format_date_yyyy_mm_dd = require("../functions/format_date_yyyy_mm_dd");
+var find_country_by_lat_lng = require("../functions/country_finder");
 
 //şemalar
 var subscribers = require("../schemas/subscribers_schema");
 var routewiserequest = require("../schemas/routewise_request_schema");
 var routewiseroutes = require("../schemas/routewise_routes_schema");
 var country_meta = require("../schemas/country_meta_schema");
+var country_reference = require("../schemas/country_reference_schema");
 
 //joi
 var routewise_request_schema = require("../joi_schemas/routewise_request_schema");
@@ -41,11 +43,48 @@ var server_cache = require("../cache");
   await server_cache.get(key);
 */
 
+async function country_control(req, res, next){
+    var { origin, destination } = req.body;
+
+    var { country_alpha_2_code, country_alpha_3_code } = find_country_by_lat_lng(origin.lat, origin.lng);
+    var destination_country_alpha_2_code = find_country_by_lat_lng(destination.lat, destination.lng).country_alpha_2_code;
+
+    if( country_alpha_2_code !== destination_country_alpha_2_code ) return res.status(400).json({ message:' Route calculations can only be performed for locations within the same country.', success: false});
+
+    var country_reference_filter = { country_alpha_2_code: country_alpha_2_code, country_alpha_3_code: country_alpha_3_code };
+    var country_reference_detail = await country_reference.findOne(country_reference_filter).lean();
+    if( !country_reference_detail ) return res.status(404).json({ message:' The selected country could not be found. ', success: false});
+
+    var { currencies, country_name } = country_reference_detail;
+
+    var selected_location_currency_code;
+    for(var i = 0; i < currencies.length; i++){
+
+        var row = currencies[i];
+        var { currency_alpha_3_code } = row;
+
+        var country_meta_filter = { currency_code: currency_alpha_3_code };
+        var country_meta_detail = await country_meta.findOne(country_meta_filter).lean();
+
+        if( !country_meta_detail ) continue;
+
+        var { currency_code } = country_meta_detail;
+        selected_location_currency_code = currency_code;
+    };
+
+    req.selected_location_currency_code = selected_location_currency_code;
+    req.country_name = country_name;
+    req.country_alpha_3_code = country_alpha_3_code;
+
+    return next();
+};
+
 app.post(
     "/route-intelligence",
     rate_limiter,
     email_address_verification,
     create_session_id,
+    country_control,
     set_service_action_name({action: 'route-detail'}),
     async(req, res) => {
 
@@ -70,7 +109,7 @@ app.post(
 
         try{      
             var status, existing_routewise_request__id, job_id, key, fuel_price_period, country_meta_detail;
-            var { session_id, subscriber_id } = req;
+            var { session_id, subscriber_id, selected_location_currency_code, country_alpha_3_code, country_name } = req;
 
             //currencies için.
             key = 'currencies';
@@ -80,12 +119,12 @@ app.post(
 
             var currency_hash = sha_256(JSON.stringify({selected_currency: currency.toLowerCase(), period: format_date_yyyy_mm_dd(date)}));
 
-            key = 'country_meta_' + currency.toUpperCase();
+            key = 'country_meta_' + selected_location_currency_code;
             country_meta_detail = await server_cache.get(key);
             if( !country_meta_detail ) {
 
                 var country_meta_filter = {
-                    currency_code: currency.toUpperCase()
+                    currency_code: selected_location_currency_code
                 };
                 country_meta_detail = await country_meta.findOne(country_meta_filter).lean();
                 if( !country_meta_detail ) throw "Country not existing. ";
@@ -161,7 +200,9 @@ app.post(
                     request_hash,
                     body: req.body,
                     subscriber_id: subscriber_id || null,
-                    session_id: session_id
+                    session_id: session_id,
+                    country_alpha_3_code: country_alpha_3_code,
+                    country_name: country_name
                 };
 
                 var job = await job_queue.add(
