@@ -134,11 +134,11 @@ app.post(
             var fuel_price_detail = fuel_prices.find(function(item){ return item.energy_type === fuel_type.toUpperCase() });
             fuel_price_period = fuel_price_detail.period;
 
-            var fuel_price_hash = sha_256(JSON.stringify({ fuel_type: fuel_type.toLowerCase(), currency_code: currency.toLowerCase(), period: get_week_bucket(fuel_price_period) }));
+            var fuel_price_hash = sha_256(JSON.stringify({ fuel_type: fuel_type.toLowerCase(), currency_code: selected_location_currency_code.toLowerCase(), period: get_week_bucket(fuel_price_period) }));
             var request_hash = sha_256(JSON.stringify(req.body));
 
             var routewise_request_filter = {
-                request_hash: request_hash,
+                request_hash,
                 fuel_price_hash,
                 currency_hash,
                 status: 'completed'
@@ -146,6 +146,7 @@ app.post(
             console.log(JSON.stringify(routewise_request_filter));
 
             var existing_routewise_request = await routewiserequest.findOne(routewise_request_filter).lean();
+            console.log("existing_routewise_request -> " + JSON.stringify(existing_routewise_request));
             if( !existing_routewise_request ) status = "It has been added to the queue";
             else {
                 status = 'completed';
