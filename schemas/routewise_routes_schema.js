@@ -13,7 +13,15 @@ var routewise_routes_schema = new mongoose.Schema({
         type: Number,
         required: false
     },
-    total_cost: {
+    avg_total_cost: {
+        type: Number,
+        required: false
+    },
+    avg_toll_road_cost: {
+        type: Number,
+        required: false
+    },
+    avg_fuel_cost_lt: {
         type: Number,
         required: false
     }

@@ -160,6 +160,7 @@ app.post(
                 request_hash: request_hash,
                 fuel_price_hash: fuel_price_hash,
                 currency_hash: currency_hash,
+                calculation_hash: sha_256(JSON.stringify({request_hash, fuel_price_hash, currency_hash})),
                 created_date: new Date(),
                 avg_consumption: avg_consumption,
                 origin: origin,

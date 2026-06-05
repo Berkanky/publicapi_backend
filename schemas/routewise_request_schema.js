@@ -67,7 +67,10 @@ var routewise_request_schema = new mongoose.Schema({
         type: String,
         required: false
     },
-    
+    calculation_hash:{
+        type: String,
+        required: false
+    },
     currency_hash:{
         type: String,
         required: false
