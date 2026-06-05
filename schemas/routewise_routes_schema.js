@@ -24,6 +24,10 @@ var routewise_routes_schema = new mongoose.Schema({
     avg_fuel_cost_lt: {
         type: Number,
         required: false
+    },
+    fuel_consumed_liters:{
+        type: Number,
+        required: false
     }
 });
 

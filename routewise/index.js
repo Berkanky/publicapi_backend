@@ -98,7 +98,7 @@ app.post(
             routing_preference,
             compute_alternative_routes,
             person,
-            luggage,
+            luggage_kg,
             drive_type,
             fuel_type,
             currency
@@ -169,7 +169,7 @@ app.post(
                 routing_preference: routing_preference,
                 compute_alternative_routes: compute_alternative_routes,
                 person,
-                luggage,
+                luggage_kg,
                 drive_type,
                 fuel_type,
                 status: status,

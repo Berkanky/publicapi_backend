@@ -54,7 +54,7 @@ var routewise_request_schema = Joi.object({
     
     person: Joi.number()
         .optional(),
-    luggage: Joi.number()
+    luggage_kg: Joi.number()
         .optional(),
     drive_type: Joi.string()
         .optional(),

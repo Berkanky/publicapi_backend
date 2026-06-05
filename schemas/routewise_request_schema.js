@@ -111,7 +111,7 @@ var routewise_request_schema = new mongoose.Schema({
         type: Number,
         required: false
     },
-    luggage: {
+    luggage_kg: {
         type: Number,
         required: false
     },
