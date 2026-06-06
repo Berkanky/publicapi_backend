@@ -76,15 +76,7 @@ var fuel_prices_schema = new mongoose.Schema({
 });
 
 var country_meta_schema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: true
-    },
-    currency_code:{
-        type: String,
-        required: false
-    },
-    dial_code: {
+    country_alpha_2_code:{
         type: String,
         required: false
     },
@@ -93,11 +85,11 @@ var country_meta_schema = new mongoose.Schema({
         required: false,
         default: []
     },
-    created_date:{
+    updated_date:{
         type: Date,
         required: false
     },
-    updated_date:{
+    created_date: {
         type: Date,
         required: false
     }

@@ -127,7 +127,7 @@ var routewise_request_schema = new mongoose.Schema({
         type: fuel_price_schema,
         requird: false
     },
-    country_name: {
+    country_alpha_2_code: {
         type: String,
         required: false
     },
