@@ -9,7 +9,12 @@ function clear_cookie_all_paths(req, res, key) {
         "/login-verify",
         "/refresh",
         "/logout",
-        "/subscribe-detail"
+        "/subscribe-detail",
+        "/route-intelligence-status-detail",
+        "/auth",
+        "/session-control",
+        "/route-intelligence-detail",
+        "/route-intelligence"
     ];
 
     for (var i = 0; i < paths.length; i++) {

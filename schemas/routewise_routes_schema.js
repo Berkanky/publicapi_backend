@@ -28,6 +28,10 @@ var routewise_routes_schema = new mongoose.Schema({
     fuel_consumed_liters:{
         type: Number,
         required: false
+    },
+    encoded_polyline:{
+        type: String,
+        required: false
     }
 });
 

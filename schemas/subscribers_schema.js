@@ -8,7 +8,8 @@ var subscribers_schema = new mongoose.Schema({
     session_id:{
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        sparse: true
     },
     email_address: {
         type: String,

@@ -1,15 +1,22 @@
 var mongoose = require("mongoose");
 
+var address_component_schema = new mongoose.Schema({
+    long_name: String,
+    short_name: String,
+    types: [String]
+}, { _id: false });
+
 var location_schema = new mongoose.Schema({
-    lat:{
-        type: Number,
-        required: false
+    lat: Number,
+    lng: Number,
+    formatted_address: String,      
+    place_id: String,               
+    plus_code: {
+        compound_code: String,
+        global_code: String
     },
-    lng:{
-        type: Number,
-        required: false
-    }
-},{ _id: false });
+    address_components: [address_component_schema]
+}, { _id: false });
 
 var fuel_price_schema = new mongoose.Schema({
     year: {

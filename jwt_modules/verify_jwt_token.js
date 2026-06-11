@@ -27,12 +27,10 @@ var options = {
 async function verify_jwt_token (req, res, next) {
 
   var jwt_token = extract_jwt_token(req);
-  console.log("Extracted JWT Token -> " + jwt_token);
-  if( !jwt_token) return res.status(401).json({ message:' Session token required.'});
+  if( !jwt_token) return res.status(401).json({ message:' Session token required.', success: false });
 
   try{
     var decoded = jwt.verify(jwt_token, SECRET_KEY, options);
-    console.log("JWT Verify -> " + JSON.stringify(decoded));
 
     req.session_id = decoded.session_id;
     req.jti = decoded.jti;
@@ -43,14 +41,12 @@ async function verify_jwt_token (req, res, next) {
     req.session_end_date = format_date(String(new Date(decoded.exp * 1000)));
     req.session_start_date = format_date(String(new Date(decoded.iat * 1000)));
 
-    console.log("JWT Token Decoded -> " + JSON.stringify(decoded));
-
-    console.log("JWT Token will expired at -> " + req.session_end_date);
+    console.log("JWT Token verified. " + JSON.stringify(decoded));
 
     return next();
   }catch (err) {
     console.error(err);
-    return res.status(401).json({ message: "Your session token is invalid or has expired. Please log in again." });
+    return res.status(401).json({ message: "Your session token is invalid or has expired. Please log in again.", success: false });
   }
 };
 

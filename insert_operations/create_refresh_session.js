@@ -3,6 +3,14 @@ var refresh_session = require("../schemas/refresh_session_schema");
 var { create_refresh_token } = require("../refresh_token_modules/create_refresh_token");
 var calculate_expire_date = require("../functions/calculate_expire_date");
 
+var { 
+    NODE_ENV, 
+} = process.env;
+
+if( !NODE_ENV ) throw "NODE_ENV required. ";
+
+var refresh_token_expire_date_h = NODE_ENV === 'production' ? 720 : 1;
+
 async function create_refresh_session(subscriber_id, session_id){
 
     var { created_refresh_token, hashed_refresh_token } = create_refresh_token();
@@ -19,8 +27,6 @@ async function create_refresh_session(subscriber_id, session_id){
         .sort({ created_date: -1 })
         .lean()
 
-    console.log("existing_refresh_session -> " + JSON.stringify(existing_refresh_session));
-
     if( existing_refresh_session ){
         var refresh_session_update = {
             $set: {
@@ -35,7 +41,7 @@ async function create_refresh_session(subscriber_id, session_id){
         await refresh_session.findByIdAndUpdate(existing_refresh_session__id, refresh_session_update);
     }
 
-    var expired_date = calculate_expire_date({ hours: 720, minutes: 0 });
+    var expired_date = calculate_expire_date({ hours: refresh_token_expire_date_h, minutes: 0 });
 
     var new_refresh_session_obj = {
         subscriber_id: subscriber_id,

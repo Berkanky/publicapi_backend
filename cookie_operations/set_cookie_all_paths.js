@@ -2,9 +2,18 @@ var set_res_cookie = require("./set_res_cookie");
 
 function set_cookie_all_paths(req, res, key, token, jwt_token_cookie_expire_date_ms){
     var authenticated_paths = [
+        "/subscribe-cancel",
+        "/email-address-verification",
+        "/news-intelligence",
+        "/login-verify",
+        "/refresh",
         "/logout",
         "/subscribe-detail",
-        "/news-intelligence",
+        "/route-intelligence-status-detail",
+        "/auth",
+        "/session-control",
+        "/route-intelligence-detail",
+        "/route-intelligence"
     ];
 
     for(var i = 0; i < authenticated_paths.length; i++){

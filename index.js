@@ -29,7 +29,8 @@ var email_address_intelligence = require("./email_address_intelligence/index");
 var phone_number_intelligence = require("./phone_number_intelligence/index");
 var file_intelligence = require("./file_intelligence/index");
 var news_intelligence = require("./news_intelligence/index");
-var route_intelligence = require("./routewise/index");
+var route_intelligence = require("./routewise_intelligence/index");
+var authentication = require("./authentication/index");
 
 var { 
   MONGODB_URI, 
@@ -181,7 +182,8 @@ app.use(
   phone_number_intelligence,
   file_intelligence,
   news_intelligence,
-  route_intelligence
+  route_intelligence,
+  authentication
 );
 
 var server = http.createServer(app);
