@@ -154,6 +154,10 @@ var routewise_request_schema = new mongoose.Schema({
         type: Boolean,
         required: false,
         default: false
+    },
+    duration_seconds:{
+        type: Number,
+        required: false
     }
 });
 

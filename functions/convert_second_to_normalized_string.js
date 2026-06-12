@@ -1,7 +1,5 @@
 function convert_second_to_normalized_string(duration_seconds) {
-  if (!duration_seconds) {
-    return 'Estimated arrival N/A';
-  }
+  if (!duration_seconds) return '-';
 
   var hours = Math.floor(duration_seconds / 3600);
   var minutes = Math.round((duration_seconds % 3600) / 60);
@@ -29,7 +27,7 @@ function convert_second_to_normalized_string(duration_seconds) {
     parts.push('Less than 1 Minute');
   }
 
-  return 'Estimated arrival ' + parts.join(' ');
+  return parts.join(' ');
 };
 
 module.exports = convert_second_to_normalized_string;

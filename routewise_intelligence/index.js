@@ -123,6 +123,8 @@ app.post(
                 existing_routewise_request__id = existing_routewise_request._id.toString();
             }
 
+            var created_date = new Date();
+
             var new_routewise_request_obj = {
                 session_id: session_id,
                 subscriber_id: subscriber_id || null,
@@ -130,7 +132,7 @@ app.post(
                 fuel_price_hash: fuel_price_hash,
                 currency_hash: currency_hash,
                 calculation_hash: sha_256(JSON.stringify({request_hash, fuel_price_hash, currency_hash})),
-                created_date: new Date(),
+                created_date: created_date,
                 avg_consumption: avg_consumption,
                 origin: origin,
                 destination: destination,
@@ -171,7 +173,8 @@ app.post(
                     subscriber_id: subscriber_id || null,
                     session_id: session_id,
                     country_alpha_3_code: country_alpha_3_code,
-                    country_alpha_2_code: country_alpha_2_code
+                    country_alpha_2_code: country_alpha_2_code,
+                    created_date: created_date
                 };
 
                 var job = await job_queue.add(
@@ -268,8 +271,10 @@ app.get(
                 .lean();
             if( !existing_routewise_request ) return res.status(404).json({ message:' routewise_request not existing. ', success: false });
 
-            var { calculation_hash } = existing_routewise_request;
-            existing_routewise_request.created_date = format_date(existing_routewise_request.created_date);
+            var { calculation_hash, created_date, duration_seconds } = existing_routewise_request;
+
+            existing_routewise_request.created_date = format_date(created_date);
+            existing_routewise_request.duration_seconds_normalized = convert_second_to_normalized_string(duration_seconds);
 
             var routewise_routes_filter = { calculation_hash: calculation_hash };
 
