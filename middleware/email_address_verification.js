@@ -6,20 +6,21 @@ if( !BASE_URL ) throw "BASE_URL required. ";
 async function email_address_verification(req, res, next){
     
     var { email_address } = req.body;
-
-    var email_address_intelligence_base_path = 'email-intelligence';
     
     var request_body = {
         email_address: email_address
     };
     
-    var request_url = BASE_URL + '/' + email_address_intelligence_base_path;
-    var res = await axios.post(request_url, request_body);
+    var request_url = BASE_URL + '/email-intelligence';
+    var response = await axios.post(request_url, request_body);
 
-    if( res.status !== 200 ) return res.status(res.status).json({ message:' The email address is missing or incorrect.', success: false });
-    if( res.data?.success !== true ) return res.status(res.status).json({ message:' The email address is missing or incorrect.', success: false });
+    var { status, data } = response;
+    var { success } = data;
 
-    var { out_response } = res.data;
+    if( status !== 200 ) return res.status(status).json({ message:' The email address is missing or incorrect.', success: false });
+    if( !success ) return res.status(status).json({ message:' The email address is missing or incorrect.', success: success });
+
+    var { out_response } = data;
     var { classification, dns } = out_response;
 
     var { is_disposable } = classification;

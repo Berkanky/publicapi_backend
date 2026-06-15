@@ -13,6 +13,7 @@ var email_detail_service_schema = require("../joi_schemas/email_detail_service_s
 var rate_limiter = require("../middleware/rate_limiter");
 var set_service_action_name = require("../middleware/set_service_action_name");
 var create_session_id = require("../middleware/create_session_id");
+var verify_jwt_token = require("../jwt_modules/verify_jwt_token");
 
 //encryptions
 var sha_256 = require("../encryption_modules/sha_256");
@@ -419,7 +420,6 @@ async function update_email_domain(out_response){
 app.post(
   "/email-intelligence",
   rate_limiter,
-  create_session_id,
   set_service_action_name({action: 'email-intelligence'}),
   async(req, res) => {
 

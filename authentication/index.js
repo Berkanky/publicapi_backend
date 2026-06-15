@@ -65,7 +65,7 @@ var {
 if( !NODE_ENV ) throw "NODE_ENV required. ";
 
 var jwt_token_cookie_expire_date_ms = NODE_ENV == 'production' ? 15 * 60 * 1000 : 50 * 60 * 1000;
-var jwt_token_expire_date_st = NODE_ENV == 'production' ? '15m' : '50m';
+var jwt_token_expire_date_st = NODE_ENV == 'production' ? '15m' : '2m';
 
 var refresh_token_cookie_expire_date_ms = NODE_ENV == 'production' ? 30 * 24 * 60 * 60 * 1000 : 1 * 60 * 60 * 1000;
 
@@ -84,113 +84,6 @@ async function user_data_del_redis(req){
     await server_cache.del(key);
     return;
 };
-
-//abonelik iptali başlat
-app.post(
-    '/start-subscribe-cancel',
-    rate_limiter,
-    email_address_verification,
-    create_session_id,
-    set_service_action_name({action:'start-subscribe-cancel'}),
-    async(req, res) => {
-
-        var { email_address } = req.body;
-        
-        var { error } = send_email_address_verification_schema.validate(req.body, { abortEarly: false });
-        if( error) return res.status(400).json({errors: error.details.map(detail => detail.message), success: false });
-        
-        try{
-
-            var job_payload = req.body;
-
-            var subscribe_filter = { email_address: email_address, verified: true };
-            var existing_subscribe = await find_existing_subscriber(req, res, subscribe_filter, []);
-            var { _id } = existing_subscribe;
-
-            var subscription_cancellation_verification_code = random_verification_code();
-            var subscription_cancellation_verification_code_hashed = sha_256(String(subscription_cancellation_verification_code));
-            var subscription_cancellation_verification_code_expire_date = calculate_expire_date({ hours: 0, minutes: 15 });
-
-            var subscribe_update = {
-                $set: {
-                    session_id: req.session_id,
-                    subscription_cancellation_verification_code: subscription_cancellation_verification_code_hashed,
-                    subscription_cancellation_verification_code_expire_date: subscription_cancellation_verification_code_expire_date
-                }
-            };
-
-            await subscribers.findByIdAndUpdate(_id, subscribe_update);
-
-            var job_queue = await create_bullmq_joq_queue('news_intelligence_email_address_verification_queue');
-
-            job_payload.session_id = req.session_id;
-            job_payload.verification_code = subscription_cancellation_verification_code;
-
-            var job = await job_queue.add(
-                "start-subscribe-cancel",
-                job_payload
-            );
-
-            var { token } = await create_jwt_token(req, res, jwt_token_expire_date_st, req.session_id, email_address, _id);
-            set_res_cookie(req, res, "jwt_token", token, jwt_token_cookie_expire_date_ms, '/subscribe-cancel');
-
-            res.set('Cache-Control','no-store');
-            return res.status(200).json({ message:' the subscription cancellation process has been initiated', success: true });
-        }catch(err){
-            console.error(err);
-            return res.status(500).json({ message:' subscribe-cancel', success: false });
-        }
-    }
-);
-
-//abone iptal tamamla
-app.post(
-    '/subscribe-cancel',
-    rate_limiter,
-    verify_jwt_token,
-    set_service_action_name({action: 'subscribe-cancel'}),
-    async(req, res) => {
-
-        var { subscriber_id } = req;
-        var { verification_code } = req.body;
-
-        var { error } = email_address_verification_schema.validate(req.body, { abortEarly: false });
-        if( error) return res.status(400).json({errors: error.details.map(detail => detail.message), success: false });
-
-        try{
-
-            var existing_subscribe = await subscribers.findById(subscriber_id).lean();
-            var { _id } = existing_subscribe;
-            if( existing_subscribe.verified === false ) return res.status(200).json({ message:' Subscription is already canceled.', success: false });
-
-            var subscription_cancellation_verification_code_hashed = sha_256(String(verification_code));
-
-            if( new Date(String(existing_subscribe.subscription_cancellation_verification_code_expire_date)) < new Date() ) return res.status(400).json({ message: ' verification code expired. ', success: false });
-            if( existing_subscribe.subscription_cancellation_verification_code !== subscription_cancellation_verification_code_hashed ) return res.status(400).json({ message:' verification code invalid. ', success: false });
-
-            var subscribe_update = {
-                $set: {
-                    verified: false,
-                    status: 'Your subscription has been successfully canceled.'
-                },
-                $unset:{
-                    verification_code: null,
-                    verification_code_expire_date: null,
-                    subscription_cancellation_verification_code_expire_date: null,
-                    subscription_cancellation_verification_code: null
-                }
-            };
-
-            await subscribers.findByIdAndUpdate(_id, subscribe_update);
-
-            clear_res_cookie(req, res, "jwt_token", '/subscribe-cancel');
-            return res.status(200).json({ message: ' Your subscription has been successfully canceled.', success: true });
-        }catch(err){
-            console.error(err);
-            return res.status(500).json({ message:' email-address-verification', success: false });
-        }
-    }
-);
 
 //Abonelik kaydı başlat
 app.post(
@@ -258,7 +151,7 @@ app.post(
 
             console.log("Verification Code -> " + verification_code);
 
-            var job_queue = await create_bullmq_joq_queue('news_intelligence_email_address_verification_queue');
+            var job_queue = await create_bullmq_joq_queue('email_address_verification_queue');
 
             job_payload.session_id = session_id;
             job_payload.verification_code = verification_code;
@@ -386,7 +279,7 @@ app.post(
 
             await subscribers.findByIdAndUpdate(_id, subscribe_update);
 
-            var job_queue = await create_bullmq_joq_queue('news_intelligence_email_address_verification_queue');
+            var job_queue = await create_bullmq_joq_queue('email_address_verification_queue');
 
             var job = await job_queue.add(
                 "login",

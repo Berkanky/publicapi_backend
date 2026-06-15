@@ -46,7 +46,7 @@ async function verify_jwt_token (req, res, next) {
     return next();
   }catch (err) {
     console.error(err);
-    return res.status(401).json({ message: "Your session token is invalid or has expired. Please log in again.", success: false });
+    return res.status(403).json({ message: "Your session token is invalid or has expired. Please log in again.", success: false });
   }
 };
 

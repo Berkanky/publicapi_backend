@@ -24,7 +24,6 @@ var shut_down_server_in_safety_mode = require("./functions/shut_down_server_in_s
 var calculate_service_response_ms = require("./middleware/calculate_service_response_ms");
 
 //Routes.
-var routes = require("./routes/index");
 var email_address_intelligence = require("./email_address_intelligence/index");
 var phone_number_intelligence = require("./phone_number_intelligence/index");
 var file_intelligence = require("./file_intelligence/index");
@@ -177,13 +176,28 @@ app.use(calculate_service_response_ms);
 
 app.use(
   "/", 
-  routes, 
   email_address_intelligence, 
   phone_number_intelligence,
   file_intelligence,
   news_intelligence,
   route_intelligence,
   authentication
+);
+
+app.get(
+    "/health",
+    async(req, res) => { 
+        try{
+          return res.status(200).json({
+            issuer: ISSUER,
+            success: true,
+            request_date: new Date()
+          });
+        }catch(err){
+            console.error(err);
+            return res.status(500).json({ message: err, success: false });
+        }
+    }
 );
 
 var server = http.createServer(app);

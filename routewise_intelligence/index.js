@@ -192,7 +192,7 @@ app.post(
     }
 );
 
-//routewiserequest status detail servisi.
+//status detail servisi.
 app.get(
     '/route-intelligence-status-detail/:_id',
     rate_limiter,
@@ -208,27 +208,17 @@ app.get(
 
         try{
 
-            var key = 'routewiserequest_' + _id + '_' + subscriber_id;
-            var existing_routewise_request = await server_cache.get(key);
-            if( existing_routewise_request ) {
-
-                res.set("X-Cache", "HIT");
-                return res.status(200).json({ success: true, routewise_request: existing_routewise_request });
-            }   
-
             var routewise_request_filter = {
                 _id: _id,
                 subscriber_id: subscriber_id
             };
 
             var existing_routewise_request = await routewiserequest.findOne(routewise_request_filter)
-                .select("-request_hash -currency_hash -fuel_price_hash -is_clone")
+                .select("status job_id created_date calculation_hash")
                 .lean();
             if( !existing_routewise_request ) return res.status(404).json({ message:' routewise_request not existing. ', success: false });
 
             existing_routewise_request.created_date = format_date(existing_routewise_request.created_date);
-
-            await server_cache.set(key, existing_routewise_request, 86400);
             return res.status(200).json({ success: true, routewise_request: existing_routewise_request });
         }catch(err){
             console.error(err);
@@ -237,7 +227,7 @@ app.get(
     }
 );
 
-//routewiserequest detail servisi.
+//detail servisi.
 app.get(
     "/route-intelligence-detail/:_id",
     rate_limiter,
@@ -259,11 +249,8 @@ app.get(
 
             if( existing_routewise_request ) {
 
-                if( existing_routewise_request.hasOwnProperty('is_routewise_request_detail_active') && existing_routewise_request.is_routewise_request_detail_active ){
-
-                    res.set("X-Cache", "HIT");
-                    return res.status(200).json({ success: true, routewise_request: existing_routewise_request });
-                }
+                res.set("X-Cache", "HIT");
+                return res.status(200).json({ success: true, routewise_request: existing_routewise_request });
             }
 
             existing_routewise_request = await routewiserequest.findById(_id)
@@ -279,7 +266,7 @@ app.get(
             var routewise_routes_filter = { calculation_hash: calculation_hash };
 
             var routewise_routes = await routewiseroutes.find(routewise_routes_filter).lean();
-            if( !routewise_routes.length ) return res.status(404).json({ message:' routes not existing. ', success: false });
+            if( !routewise_routes.length ) return res.status(404).json({ message:' routes not existing.', success: false });
 
             var normalized_routes = [];
             for(var i = 0; i < routewise_routes.length; i++){
@@ -324,6 +311,50 @@ app.get(
         }catch(err){
             console.error(err);
             return res.status(500).json({ message:' route-intelligence-detail', success: false });
+        }
+    }
+);
+
+//Geçmiş requestler
+app.get(
+    "/route-history",
+    rate_limiter,
+    verify_jwt_token,
+    set_service_action_name({action: 'history'}),
+    async(req, res) => {
+        try{
+
+            var routewise_requests;
+            var { subscriber_id } = req;
+
+            var key = 'routewise_requests_' + subscriber_id;
+            routewise_requests = await server_cache.get(key);
+            if( routewise_requests ) {
+
+                res.set("X-Cache", "HIT");
+                return res.status(200).json({ message:' Previous calculations have been successfully retrieved.', success: true, routewise_requests: routewise_requests });
+            }
+
+            var routewise_request_filter = { subscriber_id: subscriber_id };
+
+            routewise_requests = await routewiserequest.find(routewise_request_filter)
+                .select("status job_id created_date calculation_hash session_id origin destination alternative_routes_count")
+                .sort({ created_date: -1 })
+                .lean();
+            if( !routewise_requests ) return res.status(404).json({ message:' No results were found.', success: false });
+
+            for(var i = 0; i < routewise_requests.length; i++){
+                var row = routewise_requests[i];
+                var { created_date } = row;
+
+                row.created_date = format_date(created_date);
+            };
+
+            await server_cache.set(key, routewise_requests, 86400);
+            return res.status(200).json({ message:' Previous calculations have been successfully retrieved.', success: true, routewise_requests: routewise_requests });
+        }catch(err){
+            console.error(err);
+            return res.status(500).json({ message:' history service error.', success: false });
         }
     }
 );

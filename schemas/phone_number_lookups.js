@@ -1,25 +1,64 @@
 var mongoose = require("mongoose");
 
+var format_schema = new mongoose.Schema({
+    national:{
+        type: String,
+        required: false
+    },
+    international:{
+        type: String,
+        required: false
+    },
+    original:{
+        type: String,
+        required: false
+    }
+}, { _id: false });
+
 var phone_number_schema = new mongoose.Schema({
     phone_number_hash: {
         type: String,
         required: true,
         unique: true
     },
-    country_iso_code: {
+    country_alpha_2_code: {
         type: String,
         required: false
     },
-    region_code: {
+    sanitized_phone_number:{
         type: String,
         required: false
     },
-    carrier_name: {
+    e164: {
+        type: String,
+        required: false
+    },
+    country_calling_code:{
+        type: Number,
+        required: false
+    },
+    carrier_name:{
         type: String,
         required: false
     },
     number_type_code: {
         type: Number,
+        required: false
+    },
+    number_type:{
+        type: String,
+        required: false
+    },
+    is_valid:{
+        type: Boolean,
+        required: false
+    },
+    is_possible:{
+        type: Boolean,
+        required: false
+    },
+    formats:{
+        type: format_schema,
         required: false
     },
     tzones: {
