@@ -3,6 +3,8 @@ var jwt = require("jsonwebtoken");
 var extract_jwt_token = require("../jwt_modules/extract_jwt_token");
 var format_date = require("../functions/format_date");
 
+var server_cache = require("../cache");
+
 var { 
     NODE_ENV, 
     SECRET_KEY, 
@@ -32,14 +34,27 @@ async function verify_jwt_token (req, res, next) {
   try{
     var decoded = jwt.verify(jwt_token, SECRET_KEY, options);
 
-    req.session_id = decoded.session_id;
-    req.jti = decoded.jti;
-    req.email_address = decoded.email_address;
+    var { 
+      session_id,
+      jti,
+      email_address,
+      subscriber_id,
+      exp,
+      iat
+    } = decoded;
+
+    var blacklist_key = 'blacklist:' + jti;
+    var existing_blacklisted_jwt = await server_cache.get(blacklist_key);
+    if( existing_blacklisted_jwt ) return res.status(401).json({ message: 'Your session token has been revoked. Please log in again.', success: false });
+
+    req.session_id = session_id;
+    req.jti = jti;
+    req.email_address = email_address;
     req.jwt_token = jwt_token;
-    req.subscriber_id = decoded.subscriber_id;
+    req.subscriber_id = subscriber_id;
     
-    req.session_end_date = format_date(String(new Date(decoded.exp * 1000)));
-    req.session_start_date = format_date(String(new Date(decoded.iat * 1000)));
+    req.session_end_date = format_date(String(new Date(exp * 1000)));
+    req.session_start_date = format_date(String(new Date(iat * 1000)));
 
     console.log("JWT Token verified. " + JSON.stringify(decoded));
 

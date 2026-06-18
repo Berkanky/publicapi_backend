@@ -420,6 +420,7 @@ async function update_email_domain(out_response){
 app.post(
   "/email-intelligence",
   rate_limiter,
+  //verify_jwt_token,
   set_service_action_name({action: 'email-intelligence'}),
   async(req, res) => {
 

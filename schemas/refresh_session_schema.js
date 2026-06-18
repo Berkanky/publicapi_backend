@@ -1,5 +1,16 @@
 const mongoose = require("mongoose");
 
+var issued_jti_schema = new mongoose.Schema({
+    jti:{
+        type: String,
+        required: false
+    },
+    created_date: {
+        type: Date,
+        required: false
+    }
+});
+
 var refresh_session_schema = new mongoose.Schema({
     subscriber_id: { 
         type: mongoose.Schema.Types.ObjectId, 
@@ -36,7 +47,8 @@ var refresh_session_schema = new mongoose.Schema({
     last_used_date: { 
         type: Date, 
         default: null 
-    }
+    },
+    issued_jtis:[issued_jti_schema]
 });
 
 refresh_session_schema.index({ expires_date: 1 }, { expireAfterSeconds: 0 });

@@ -20,8 +20,6 @@ async function update_audit_log(req, res, next){
     subscriber_id: null
   };
 
-  console.log("audit_log_filter -> " + JSON.stringify(audit_log_filter));
-
   var audit_log_update = {
     $set: {
       subscriber_id: subscriber_id

@@ -3,6 +3,8 @@ var refresh_session = require("../schemas/refresh_session_schema");
 var { create_refresh_token } = require("../refresh_token_modules/create_refresh_token");
 var calculate_expire_date = require("../functions/calculate_expire_date");
 
+var server_cache = require("../cache");
+
 var { 
     NODE_ENV, 
 } = process.env;
@@ -11,7 +13,7 @@ if( !NODE_ENV ) throw "NODE_ENV required. ";
 
 var refresh_token_expire_date_h = NODE_ENV === 'production' ? 720 : 1;
 
-async function create_refresh_session(subscriber_id, session_id){
+async function create_refresh_session(subscriber_id, session_id, jti){
 
     var { created_refresh_token, hashed_refresh_token } = create_refresh_token();
     var created_date = new Date();
@@ -37,8 +39,24 @@ async function create_refresh_session(subscriber_id, session_id){
         };
 
         var existing_refresh_session__id = existing_refresh_session._id.toString();
-
         await refresh_session.findByIdAndUpdate(existing_refresh_session__id, refresh_session_update);
+
+        var issued_jtis = [];
+
+        issued_jtis = existing_refresh_session?.issued_jtis || [];
+        for(var i = 0; i < issued_jtis.length; i++){
+            
+            var row = issued_jtis[i];
+            var key = 'blacklist:' + row.jti;
+
+            var revoked_jwt = {
+                revoked: true,
+                reason: 'refresh-session',
+                subscriber_id: subscriber_id,
+                revoked_date: new Date()
+            };
+            await server_cache.set(key, revoked_jwt, 900);
+        };  
     }
 
     var expired_date = calculate_expire_date({ hours: refresh_token_expire_date_h, minutes: 0 });
@@ -48,7 +66,13 @@ async function create_refresh_session(subscriber_id, session_id){
         session_id: session_id,
         refresh_token_hash: hashed_refresh_token,
         expired_date: expired_date,
-        created_date: created_date
+        created_date: created_date,
+        issued_jtis:[
+            {
+                jti: jti,
+                created_date: new Date()
+            }
+        ]
     };
 
     var new_refresh_session = new refresh_session(new_refresh_session_obj);

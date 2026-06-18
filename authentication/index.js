@@ -77,14 +77,6 @@ async function find_existing_subscriber(req, res, filter, columns){
     return existing_subscribe;
 };
 
-async function user_data_del_redis(req){
-    var { subscriber_id } = req;
-    var key = 'user_' + subscriber_id;
-
-    await server_cache.del(key);
-    return;
-};
-
 //Abonelik kaydı başlat
 app.post(
     '/send-email-address-verification',
@@ -94,9 +86,8 @@ app.post(
     set_service_action_name({action: 'verify-email-address'}),
     async(req, res) => {
 
-        var { 
-            email_address
-        } = req.body;
+        var { session_id } = req;
+        var { email_address } = req.body;
 
         var { error } = send_email_address_verification_schema.validate(req.body, { abortEarly: false });
         if( error) return res.status(400).json({errors: error.details.map(detail => detail.message), success: false });
@@ -104,8 +95,8 @@ app.post(
         try{
 
             var subscriber_id;
+            
             var job_payload = req.body;
-            var session_id = req.session_id;
 
             var subscribe_filter = { email_address: email_address };
             var existing_subscribe = await subscribers.findOne(subscribe_filter).select("_id verified").lean();
@@ -122,7 +113,6 @@ app.post(
 
                     var subscribe_update = {
                         $set:{
-                            session_id: session_id,
                             verification_code: verification_code_hashed,
                             verification_code_expire_date: verification_code_expire_date
                         }
@@ -139,8 +129,7 @@ app.post(
                     verified: false,
                     status: 'email verification has been initiated',
                     verification_code: verification_code_hashed,
-                    verification_code_expire_date: verification_code_expire_date,
-                    session_id: session_id
+                    verification_code_expire_date: verification_code_expire_date
                 };
 
                 var new_subscribe = new subscribers(new_subscribe_obj);
@@ -148,8 +137,6 @@ app.post(
 
                 subscriber_id = new_subscribe._id.toString();
             }
-
-            console.log("Verification Code -> " + verification_code);
 
             var job_queue = await create_bullmq_joq_queue('email_address_verification_queue');
 
@@ -163,13 +150,11 @@ app.post(
 
             await subscribers.findOneAndUpdate({ email_address: email_address }, { job_id: job.id });
 
-            var message = 'Email verification has been initiated. Please check your email and complete the verification process.';
-            
-            var { token } = await create_jwt_token(req, res, jwt_token_expire_date_st, req.session_id, email_address, subscriber_id);
+            var { token } = await create_jwt_token(req, res, jwt_token_expire_date_st, session_id, email_address, subscriber_id);
             set_res_cookie(req, res, "jwt_token", token, jwt_token_cookie_expire_date_ms, '/email-address-verification');
 
             res.set('Cache-Control','no-store');
-            return res.status(200).json({ messgae: message, success: true });
+            return res.status(200).json({ messgae: 'Email verification has been initiated. Please check your email and complete the verification process.', success: true });
         }catch(err){
             console.error(err);
             return res.status(500).json({ message:' verify-email-address', success: false });
@@ -185,7 +170,7 @@ app.post(
     set_service_action_name({action: 'email-address-verification'}),
     async(req, res) => {
 
-        var { email_address, subscriber_id } = req;
+        var { email_address, subscriber_id, session_id } = req;
         var { verification_code } = req.body;
 
         var { error } = email_address_verification_schema.validate(req.body, { abortEarly: false });
@@ -203,6 +188,7 @@ app.post(
 
             var subscribe_update = {
                 $set: {
+                    session_id: session_id,
                     active: true,
                     verified: true,
                     subscription_date: new Date(),
@@ -222,8 +208,8 @@ app.post(
 
             clear_res_cookie(req, res, "jwt_token", '/email-address-verification');
 
-            var { token } = await create_jwt_token(req, res, jwt_token_expire_date_st, req.session_id, email_address, _id);            
-            var { created_refresh_token, hashed_refresh_token } = await create_refresh_session(_id, req.session_id);
+            var { token, jti } = await create_jwt_token(req, res, jwt_token_expire_date_st, session_id, email_address, _id);            
+            var { created_refresh_token, hashed_refresh_token } = await create_refresh_session(_id, session_id, jti);
 
             set_cookie_all_paths(req, res, 'jwt_token', token, jwt_token_cookie_expire_date_ms);
             set_res_cookie(req, res, "refresh_token", created_refresh_token, refresh_token_cookie_expire_date_ms, '/refresh');
@@ -270,8 +256,6 @@ app.post(
 
             var subscribe_update = {
                 $set: {
-                    active: false,
-                    session_id: req.session_id,
                     verification_code: verification_code_hashed,
                     verification_code_expire_date: calculate_expire_date({hours: 0, minutes: 15 })
                 }
@@ -306,7 +290,7 @@ app.post(
     set_service_action_name({ action: 'login-verify'}),
     async(req, res) => {
 
-        var { email_address, subscriber_id } = req;
+        var { email_address, subscriber_id, session_id } = req;
         var { verification_code } = req.body
 
         var { error } = email_address_verification_schema.validate(req.body, { abortEarly: false });
@@ -325,6 +309,7 @@ app.post(
 
             var subscribe_update = {
                 $set: {
+                    session_id: session_id,
                     active: true,
                     login_date: new Date(),
                     status: 'User login was successful',
@@ -337,15 +322,13 @@ app.post(
             };
             await subscribers.findByIdAndUpdate(_id, subscribe_update);
 
-            var { token } = await create_jwt_token(req, res, jwt_token_expire_date_st, req.session_id, email_address, _id);            
-            var { created_refresh_token, hashed_refresh_token } = await create_refresh_session(_id, req.session_id);
-
+            var { token, jti } = await create_jwt_token(req, res, jwt_token_expire_date_st, session_id, email_address, _id);  
+            var { created_refresh_token, hashed_refresh_token } = await create_refresh_session(_id, session_id, jti);          
+            
             clear_res_cookie(req, res, "jwt_token", '/login-verify');
 
             set_cookie_all_paths(req, res, 'jwt_token', token, jwt_token_cookie_expire_date_ms);
             set_res_cookie(req, res, "refresh_token", created_refresh_token, refresh_token_cookie_expire_date_ms, '/refresh');
-
-            await user_data_del_redis(req);
 
             res.set('Cache-Control','no-store');
             return res.status(200).json({ message:' You have successfully logged in. Welcome.', success: true });
@@ -425,16 +408,11 @@ app.post(
                 await subscribers.findByIdAndUpdate(existing_subscribe__id, subscribe_update);
             }
 
-            var { token } = await create_jwt_token(req, res, jwt_token_expire_date_st, req.session_id, email_address, existing_subscribe__id);            
-            var { created_refresh_token, hashed_refresh_token } = await create_refresh_session(existing_subscribe__id, req.session_id);
+            var { token, jti } = await create_jwt_token(req, res, jwt_token_expire_date_st, req.session_id, email_address, existing_subscribe__id);            
+            var { created_refresh_token, hashed_refresh_token } = await create_refresh_session(existing_subscribe__id, req.session_id, jti);
 
             set_cookie_all_paths(req, res, 'jwt_token', token, jwt_token_cookie_expire_date_ms);
-            //set_res_cookie(req, res, "jwt_token", token, jwt_token_cookie_expire_date_ms, '/');
             set_res_cookie(req, res, "refresh_token", created_refresh_token, refresh_token_cookie_expire_date_ms, '/refresh');
-
-            req.subscriber_id = existing_subscribe__id;
-
-            await user_data_del_redis(req);
 
             res.set('Cache-Control','no-store');
             return res.status(200).json({ message:' You have successfully signed in with Google.', success: true });
@@ -476,10 +454,10 @@ app.get(
             await clear_cookie_all_paths(req, res, "jwt_token");
             await clear_cookie_all_paths(req, res, "refresh_token");
 
-            var { token } = await create_jwt_token(req, res, jwt_token_expire_date_st, req.session_id, email_address, subscriber_id);            
+            var { token, jti } = await create_jwt_token(req, res, jwt_token_expire_date_st, req.session_id, email_address, subscriber_id);            
             set_cookie_all_paths(req, res, 'jwt_token', token, jwt_token_cookie_expire_date_ms);
 
-            var { created_refresh_token, hashed_refresh_token } = await create_refresh_session(subscriber_id, req.session_id);
+            var { created_refresh_token, hashed_refresh_token } = await create_refresh_session(subscriber_id, req.session_id, jti);
             set_res_cookie(req, res, "refresh_token", created_refresh_token, refresh_token_cookie_expire_date_ms, '/refresh');
 
             var subscribe_update = {
@@ -488,8 +466,6 @@ app.get(
                 }
             };
             await subscribers.findByIdAndUpdate(subscriber_id, subscribe_update);
-
-            req.subscriber_id = subscriber_id;
 
             res.set('Cache-Control','no-store');
             return res.status(200).json({ message:' The token has been successfully renewed.', success: true });
@@ -509,7 +485,7 @@ app.post(
     async(req, res) =>{
         try{
 
-            var { session_id, subscriber_id } = req;
+            var { session_id, subscriber_id, jti } = req;
 
             var subscribe_update = {
                 $set: {
@@ -535,7 +511,17 @@ app.post(
             await clear_cookie_all_paths(req, res, "jwt_token");
             await clear_cookie_all_paths(req, res, "refresh_token");
 
-            await user_data_del_redis(req);
+            var blacklist_key = 'blacklist:' + jti;
+            var subscriber_key = "subscriber_" + subscriber_id;
+            var revoked_jwt = {
+                revoked: true,
+                reason: 'logout',
+                subscriber_id: subscriber_id,
+                revoked_date: new Date()
+            };
+
+            await server_cache.set(blacklist_key, revoked_jwt, 900);
+            await server_cache.del(subscriber_key);
 
             return res.status(200).json({ message: ' The user session has been successfully closed.', success: true });
         }catch(err){
@@ -556,19 +542,14 @@ app.get(
             var { subscriber_id } = req;
             var existing_subscriber, active;
 
-            var key = 'user_' + subscriber_id;
+            var key = 'subscriber_' + subscriber_id;
             existing_subscriber = await server_cache.get(key);
+
             if( !existing_subscriber ) {
 
-                existing_subscriber = await subscribers.findById(subscriber_id).select('active').lean();
-
+                existing_subscriber = await subscribers.findById(subscriber_id).select("active").lean();
                 active = existing_subscriber.active;
-                await server_cache.set(key, {active: active}, 43200);
-            } else {
-
-                active = existing_subscriber.active;
-                res.set("X-Cache", "HIT");
-            }
+            } else active = existing_subscriber.active;
 
             if( !active ) return res.status(400).json({ message:'Please log in again. ', success: false });
             return res.status(200).json({ success: true });

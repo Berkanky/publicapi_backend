@@ -36,12 +36,11 @@ app.post(
         var {
             start_date, 
             end_date, 
-            default_locale_code, 
+            country_iso_code, 
             category, 
             page_size,
             page,
-            sort_by,
-            daily_post
+            sort_by
         } = req.body;
 
         var { error } = news_intelligence_service_schema.validate(req.body, { abortEarly: false });
@@ -49,24 +48,14 @@ app.post(
 
         try{   
 
-            var { email_address, subscriber_id, session_id } = req;
+            var { subscriber_id, session_id } = req;
 
             var job_payload = req.body;
             var request_hash = sha_256(JSON.stringify(req.body));
 
-            var subscribe_update = {
-                $set: {
-                    category: category,
-                    default_locale_code: default_locale_code,
-                    daily_post: daily_post
-                }
-            };
-
-            await subscribers.findByIdAndUpdate(subscriber_id, subscribe_update);
-
             var news_request_obj = {
                 subscriber_id: subscriber_id,
-                default_locale_code: default_locale_code,
+                country_alpha_2_code: country_iso_code,
                 category: category,
                 created_date: new Date(),
                 status: 'processed',
@@ -86,7 +75,6 @@ app.post(
             var created_news_request__id = new_news_request._id.toString();
 
             Object.assign(job_payload, { 
-                email_address: email_address,
                 request_hash: request_hash,
                 subscriber_id: subscriber_id,
                 created_news_request__id: created_news_request__id,
@@ -106,8 +94,7 @@ app.post(
                 }
             };
             await news_request.findByIdAndUpdate(created_news_request__id, news_request_update);
-
-            return res.status(200).json({ message:' news-intelligence service successfully completed.', success: true, session_id: session_id });
+            return res.status(200).json({ message:' news-intelligence service successfully completed.', success: true, _id: created_news_request__id });
         }catch(err){
             console.error(err);
             return res.status(500).json({ message:' news-intelligence service error. ', success: false });

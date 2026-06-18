@@ -22,7 +22,7 @@ var news_request_schema = new mongoose.Schema({
         type: Date,
         required: false
     },
-    default_locale_code: {
+    country_alpha_2_code: {
         type: String,
         required: true
     },

@@ -14,6 +14,7 @@ var verify_jwt_token = require("../jwt_modules/verify_jwt_token");
 
 //shemas
 var phonenumber = require("../schemas/phone_number_lookups");
+var phonenumberrequest = require("../schemas/phone_number_request");
 
 //encryptions
 var sha_256 = require("../encryption_modules/sha_256");
@@ -136,6 +137,25 @@ async function update_phone_number(req, response){
   );
 };
 
+async function insert_phone_number_request(req){
+
+  var { subscriber_id, phone_number_hash } = req;
+  var { phone_number, country_iso_code } = req.body;
+
+  var new_phone_number_request_obj = {
+    subscriber_id: subscriber_id,
+    phone_number_hash: phone_number_hash,
+    created_date: new Date()
+  };
+
+  console.log("new_phone_number_request_obj -> " + JSON.stringify(new_phone_number_request_obj));
+
+  var new_phone_number_request = new phonenumberrequest(new_phone_number_request_obj);
+  await new_phone_number_request.save();
+
+  return true;
+};
+
 // -> /phone/lookup //country_iso_code -> 'tr'
 app.post(
   "/phonenumber-intelligence",
@@ -144,6 +164,7 @@ app.post(
   set_service_action_name({action: 'phone-lookup'}),
   async(req, res) => {
 
+    var { subscriber_id } = req;
     var { phone_number, country_iso_code } = req.body;
 
     var { error } = phone_number_detail_service_schema.validate(req.body, { abortEarly: false });
@@ -158,7 +179,7 @@ app.post(
       var phone_number_raw_detail = phoneUtil.parseAndKeepRawInput(sanitized_phone_number, sanitized_country_iso_code);
 
       var is_valid_for_region = phoneUtil.isValidNumberForRegion(phone_number_raw_detail, sanitized_country_iso_code);
-      if( !is_valid_for_region ) return { message:' Phone number is not valid for the provided region.', success: false, http_status: 422, response: {} };
+      if( !is_valid_for_region ) return res.status(422).json({ message: 'Phone number is not valid for the provided region.', success: false });
 
       var format_number_e164 = phoneUtil.format(phone_number_raw_detail, PNF.E164);
 
@@ -169,6 +190,9 @@ app.post(
       response = await server_cache.get(key);
       if( response ) {
 
+        await insert_phone_number_request(req);
+        await update_phone_number(req, response);
+        
         res.set("X-Cache", "HIT");
         return res.status(200).json({ success: true,  out_response: response });
       }
@@ -230,6 +254,7 @@ app.post(
         }
       };
 
+      await insert_phone_number_request(req);
       await update_phone_number(req, response);
       await server_cache.set(key, response, 86400);
 

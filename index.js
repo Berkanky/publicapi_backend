@@ -56,11 +56,7 @@ app.disable('x-powered-by');
 
 app.use((req, res, next) => {
   res.on("finish", () => {
-    console.log(
-      req.method,
-      req.originalUrl,
-      res.statusCode
-    );
+    console.log(req.method, req.originalUrl, res.statusCode);
   });
   next();
 });
@@ -214,7 +210,7 @@ app.use((err, req, res, next) => {
 });
 
 server.listen(PORT, () => { 
-  console.log("Server running. ");
+  console.log("Server running. PORT - " + PORT );
 });
 
 process.on('SIGTERM', shut_down_server_in_safety_mode);

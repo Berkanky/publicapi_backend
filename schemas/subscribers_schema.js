@@ -28,18 +28,6 @@ var subscribers_schema = new mongoose.Schema({
         type: Date,
         required: false
     },
-    daily_post: {
-        type: Boolean,
-        required: false
-    },
-    category:{
-        type: String,
-        required: false
-    },
-    default_locale_code: {
-        type: String,
-        required: false
-    },
     verified: {
         type: Boolean,
         required: false
