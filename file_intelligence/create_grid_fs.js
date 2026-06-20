@@ -1,8 +1,9 @@
 var { Readable } = require('stream');
 var crypto = require('crypto');
 
-async function create_grid_fs(req, files) {
+async function create_grid_fs(req, files, created_file_request__id) {
 
+    var { subscriber_id } = req;
     var app_locals = req.app.locals;
 
     var files_bucket = app_locals.files_bucket;
@@ -25,7 +26,8 @@ async function create_grid_fs(req, files) {
             mime_type: file_row.mimetype,
             size: file_row.size,
             created_date: new Date(),
-            session_id: req.session_id
+            subsriber_id: subscriber_id,
+            file_request_id: created_file_request__id
         };
 
         var uploadStream = files_bucket.openUploadStream(file_row.originalname, {

@@ -17,7 +17,9 @@ function clear_cookie_all_paths(req, res, key) {
         "/route-intelligence",
         "/route-history",
         "/phonenumber-intelligence",
-        "/email-intelligence"
+        "/email-intelligence",
+        "/file-intelligence",
+        "/file-intelligence-detail"
     ];
 
     for (var i = 0; i < paths.length; i++) {

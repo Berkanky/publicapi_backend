@@ -1,8 +1,8 @@
 const Joi = require("joi");
 
 const file_intelligence_detail_service_schema = Joi.object({
-  session_id: Joi.string().required().messages({
-    "any.required": "session_id is required. "
+  _id: Joi.string().required().messages({
+    "any.required": "_id is required. "
   })
 });
 

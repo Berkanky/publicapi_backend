@@ -16,7 +16,9 @@ function set_cookie_all_paths(req, res, key, token, jwt_token_cookie_expire_date
         "/route-intelligence",
         "/route-history",
         "/phonenumber-intelligence",
-        "/email-intelligence"
+        "/email-intelligence",
+        "/file-intelligence",
+        "/file-intelligence-detail"
     ];
 
     for(var i = 0; i < authenticated_paths.length; i++){

@@ -1,21 +1,23 @@
 var fileintelligence = require("../schemas/file_intelligence_schema");
 
-async function create_file_intelligence(req, file, job_id, hashed_file_buffer, country_reference_id){
+async function create_file_intelligence(req, hashed_file_buffer){
+    var { subscriber_id, session_id } = req;
+    var { country_iso_code } = req.body;
 
     var new_file_obj = {
-        session_id: req.session_id,
-        file_id: file.file_id,
-        job_id: job_id,
+        subscriber_id: subscriber_id,
+        session_id: session_id,
         created_date: new Date(),
-        status: 0,
+        status: "processed",
         buffer: hashed_file_buffer,
-        country_reference_id: country_reference_id
+        country_alpha_2_code: country_iso_code
     };
 
     var new_file = new fileintelligence(new_file_obj);
     await new_file.save();
 
-    return true;
+    var created_file_request__id = new_file._id.toString();
+    return created_file_request__id;
 };  
 
 module.exports = create_file_intelligence;
