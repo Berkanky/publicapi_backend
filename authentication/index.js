@@ -81,7 +81,7 @@ async function find_existing_subscriber(req, res, filter, columns){
 app.post(
     '/send-email-address-verification',
     rate_limiter,
-    email_address_verification,
+    //email_address_verification,
     create_session_id,
     set_service_action_name({action: 'verify-email-address'}),
     async(req, res) => {
@@ -227,7 +227,7 @@ app.post(
 app.post(
     "/login",
     rate_limiter,
-    email_address_verification,
+    //email_address_verification,
     create_session_id,
     set_service_action_name({ action: "login" }),
     async(req, res) => {

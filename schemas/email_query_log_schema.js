@@ -10,7 +10,7 @@ var email_query_log_schema = new mongoose.Schema(
         index: true
     },
 
-    email_hash: {
+    email_address_hash: {
         type: String,
         required: true,
         index: true
@@ -148,7 +148,7 @@ var email_query_log_schema = new mongoose.Schema(
 }
 );
 
-email_query_log_schema.index({ email_hash: 1 });
+email_query_log_schema.index({ email_address_hash: 1 });
 email_query_log_schema.index({ domain: 1, last_query_date: -1 });
 email_query_log_schema.index({ risk_level: 1, last_query_date: -1 });
 email_query_log_schema.index({ is_disposable: 1, last_query_date: -1 });

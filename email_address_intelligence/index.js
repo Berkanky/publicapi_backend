@@ -5,6 +5,9 @@ var crypto = require('crypto');
 
 //schemas
 var email_query_log = require("../schemas/email_query_log_schema");
+var disposable_email_domain = require("../schemas/disposable_email_domain_schema");
+var tld_dataset = require("../schemas/tld_dataset_schema");
+var email_query_request = require("../schemas/email_query_request");
 
 //joi schemas
 var email_detail_service_schema = require("../joi_schemas/email_detail_service_schema");
@@ -17,6 +20,9 @@ var verify_jwt_token = require("../jwt_modules/verify_jwt_token");
 
 //encryptions
 var sha_256 = require("../encryption_modules/sha_256");
+
+//functions
+var format_date = require("../functions/format_date");
 
 var server_cache = require("../cache");
 
@@ -35,7 +41,18 @@ async function catch_redis_metadata(){
 
   try{
     cached_disposable_email_domains = await server_cache.get(disposable_email_domains_cache_key);
+    if( !cached_disposable_email_domains ) {
+
+      cached_disposable_email_domains = await disposable_email_domain.find().lean();
+      await server_cache.set(disposable_email_domains_cache_key, cached_disposable_email_domains, 86400);
+    }
+
     cached_tlds = await server_cache.get(tlds_cache_key);
+    if( !cached_tlds ) {
+
+      cached_tlds = await tld_dataset.find().lean();
+      await server_cache.set(tlds_cache_key, cached_tlds, 86400);
+    }
 
   }catch(err){
     console.error(err);
@@ -383,7 +400,7 @@ async function update_email_domain(out_response){
   var hashed_normalized_email_address = sha_256(normalized_email_address);
   
   await email_query_log.findOneAndUpdate(
-    { email_hash: hashed_normalized_email_address },
+    { email_address_hash: hashed_normalized_email_address },
     {
       $set: {
         last_query_date: new Date()
@@ -393,7 +410,7 @@ async function update_email_domain(out_response){
       },
       $setOnInsert: {
         input_email: out_response?.input?.email || null,
-        email_hash: hashed_normalized_email_address,
+        email_address_hash: hashed_normalized_email_address,
         normalized_email:  out_response?.normalized?.email || null,
         local_part: out_response?.normalized?.local_part || null,
         domain: out_response?.normalized?.domain || null,
@@ -417,10 +434,29 @@ async function update_email_domain(out_response){
   );
 };
 
+async function insert_email_request(req){
+  var { subscriber_id } = req;
+  var { email_address } = req.body;
+
+  var new_email_query_request_obj = {
+    subscriber_id: subscriber_id,
+    email_address_hash: sha_256(email_address),
+    created_date: new Date()
+  };
+
+  var new_email_query_request = new email_query_request(new_email_query_request_obj);
+  await new_email_query_request.save();
+
+  var key = 'email_query_requests:' + subscriber_id;
+  await server_cache.del(key);
+
+  return;
+};
+
 app.post(
   "/email-intelligence",
   rate_limiter,
-  //verify_jwt_token,
+  verify_jwt_token,
   set_service_action_name({action: 'email-intelligence'}),
   async(req, res) => {
 
@@ -436,6 +472,7 @@ app.post(
       if( cached_email_address_detail ) {
         
         await update_email_domain(cached_email_address_detail);
+        await insert_email_request(req);
 
         res.set("X-Cache", "HIT");
         return res.status(200).json({ success: true, out_response: cached_email_address_detail });
@@ -443,6 +480,7 @@ app.post(
 
       var out_response = await validate_email_service(email_address);
 
+      await insert_email_request(req);
       await update_email_domain(out_response);
       await server_cache.set(cache_key, out_response, 86400);
 
@@ -452,6 +490,70 @@ app.post(
 
       console.error(err);
       return res.status(500).json({ message:' email-intelligence', success: false });
+    }
+  }
+);
+
+app.get(
+  "/email-intelligence-history",
+  rate_limiter,
+  verify_jwt_token,
+  set_service_action_name({action: 'email-intelligence-history'}),
+  async(req, res) => {
+    try{
+      var { subscriber_id } = req;
+
+      var key = 'email_query_requests:' + subscriber_id;
+
+      var email_query_requests = [];
+      email_query_requests = await server_cache.get(key);
+      if( email_query_requests ){
+
+        res.set("X-Cache", "HIT");
+        return res.status(200).json({ success: true, email_query_requests: email_query_requests });
+      }
+
+      var email_query_request_filter = { subscriber_id: subscriber_id };
+      email_query_requests = await email_query_request.find(email_query_request_filter).lean();
+      if( !email_query_requests.length ) return res.status(404).json({ success: false, message:' email query requests not found. ' });
+
+      var normalized_email_query_requests = [];
+      for(var i = 0; i < email_query_requests.length; i++){
+        var row = email_query_requests[i];
+
+        var { _id, email_address_hash, created_date } = row;
+
+        var created_date = format_date(created_date);
+
+        var email_query_log_filter = { email_address_hash: email_address_hash };
+        var email_query_log_detail = await email_query_log.findOne(email_query_log_filter).lean();
+
+        var { normalized_email } = email_query_log_detail;
+
+        var email_address = normalized_email;
+
+        var query_count = email_query_requests.filter(function(item){ return item.email_address_hash === email_address_hash }).length || 0;
+
+        var existing_normalized_email_query_request = normalized_email_query_requests.some(function(item){ return item.email_address_hash === email_address_hash });
+        if( !existing_normalized_email_query_request ) {
+          normalized_email_query_requests.push({
+            _id: _id,
+            email_address_hash: email_address_hash,
+            email_address: email_address,
+            created_date: created_date,
+            query_count: query_count
+          });
+        }
+
+        continue;
+      };
+
+      await server_cache.set(key, normalized_email_query_requests, 3600);
+
+      return res.status(200).json({ success: true, email_query_requests: normalized_email_query_requests });
+    }catch(err){
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'email-intelligence-history service error. ' });
     }
   }
 );

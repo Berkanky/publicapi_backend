@@ -19,7 +19,9 @@ function clear_cookie_all_paths(req, res, key) {
         "/phonenumber-intelligence",
         "/email-intelligence",
         "/file-intelligence",
-        "/file-intelligence-detail"
+        "/file-intelligence-detail",
+        "/email-intelligence-history",
+        "/phonenumber-intelligence-history"
     ];
 
     for (var i = 0; i < paths.length; i++) {

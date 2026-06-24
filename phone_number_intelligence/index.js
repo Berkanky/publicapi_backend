@@ -19,6 +19,10 @@ var phonenumberrequest = require("../schemas/phone_number_request");
 //encryptions
 var sha_256 = require("../encryption_modules/sha_256");
 var aes_256_gcm_encrypt = require("../encryption_modules/aes_256_gcm_encrypt");
+var aes_256_gcm_decrypt = require("../encryption_modules/aes_256_gcm_decrypt");
+
+//functions 
+var format_date = require("../functions/format_date");
 
 var server_cache = require("../cache");
 
@@ -148,10 +152,11 @@ async function insert_phone_number_request(req){
     created_date: new Date()
   };
 
-  console.log("new_phone_number_request_obj -> " + JSON.stringify(new_phone_number_request_obj));
-
   var new_phone_number_request = new phonenumberrequest(new_phone_number_request_obj);
   await new_phone_number_request.save();
+
+  var key = 'phonenumber_requests:' + subscriber_id;
+  await server_cache.del(key);
 
   return true;
 };
@@ -262,6 +267,74 @@ app.post(
     }catch(err){
       console.error(err);
       return res.status(500).json({ message:' phone-lookup service error. ', success: false });
+    }
+  }
+);
+
+app.get(
+  "/phonenumber-intelligence-history",
+  rate_limiter,
+  verify_jwt_token,
+  set_service_action_name({action: 'phonenumber-intelligence-history'}),
+  async(req, res) => {
+    try{
+      var { subscriber_id } = req;
+
+      var key = 'phonenumber_requests:' + subscriber_id;
+      var phonenumber_requests = [];
+      
+      phonenumber_requests = await server_cache.get(key);
+      if( phonenumber_requests ){
+        console.log("var");
+        res.set("X-Cache", "HIT");
+        return res.status(200).json({ success: true, phonenumber_requests: phonenumber_requests });
+      }
+      console.log("yok");
+      var phonenumber_requests_filter = { subscriber_id: subscriber_id };
+      phonenumber_requests = await phonenumberrequest.find(phonenumber_requests_filter).lean();
+
+      if( !phonenumber_requests.length ) return res.status(404).json({ success: false, message:' phonenumber requests not found. ' });
+
+      var normalized_phonenumber_requests = [];
+      for(var i = 0; i < phonenumber_requests.length; i++){
+
+        var row = phonenumber_requests[i];
+        var { _id, subscriber_id, phone_number_hash, created_date } = row;
+
+        var phonenumbers_filter = { phone_number_hash: phone_number_hash };
+        var phonenumber_detail = await phonenumber.findOne(phonenumbers_filter).lean();
+        if( !phonenumber_detail ) continue;
+
+        var created_date = format_date(created_date);
+        var { formats, country_alpha_2_code } = phonenumber_detail;
+        var { international } = formats;
+
+        var query_count = phonenumber_requests.filter(function(item){ return item.phone_number_hash === phone_number_hash }).length;
+        var is_phonenumber_request_existing = normalized_phonenumber_requests.some(function(item){ return item.phone_number_hash === phone_number_hash });
+
+        if( !is_phonenumber_request_existing ){
+          normalized_phonenumber_requests.push(
+            {
+              _id: _id,
+              subscriber_id: subscriber_id,
+              phone_number_hash: phone_number_hash,
+              created_date: created_date,
+              international: aes_256_gcm_decrypt(international),
+              country_alpha_2_code: country_alpha_2_code,
+              query_count: query_count
+            }
+          );
+        }
+
+        continue;
+      };
+
+      await server_cache.set(key, normalized_phonenumber_requests, 86400);
+
+      return res.status(200).json({ success: true, phonenumber_requests: normalized_phonenumber_requests });
+    }catch(err){
+      console.error(err);
+      return res.status(500).json({ success: false, message:' phonenumber-intelligence-history service error. ' });
     }
   }
 );

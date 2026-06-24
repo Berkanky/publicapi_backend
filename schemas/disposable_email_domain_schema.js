@@ -92,4 +92,5 @@ disposable_email_domain_schema.index({ is_active: 1, domain: 1 });
 disposable_email_domain_schema.index({ category: 1, is_active: 1 });
 disposable_email_domain_schema.index({ source_count: -1, confidence_score: -1 });
 
-module.exports = mongoose.model("disposable_email_domain", disposable_email_domain_schema);
+var disposable_email_domain = mongoose.model("disposable_email_domain", disposable_email_domain_schema);
+module.exports = disposable_email_domain;

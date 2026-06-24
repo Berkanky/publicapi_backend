@@ -62,4 +62,5 @@ var tld_dataset_schema = new mongoose.Schema(
 tld_dataset_schema.index({ tld: 1 }, { unique: true });
 tld_dataset_schema.index({ is_active: 1, tld: 1 });
 
-module.exports = mongoose.model("tld_dataset", tld_dataset_schema);
+var tld_dataset = mongoose.model("tld_dataset", tld_dataset_schema);
+module.exports = tld_dataset;
