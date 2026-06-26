@@ -28,7 +28,7 @@ var verify_jwt_token = require("../jwt_modules/verify_jwt_token");
 //Haber isteği servisi
 app.post(
     '/news-intelligence',
-    rate_limiter,
+    //rate_limiter,
     verify_jwt_token,
     set_service_action_name({action: 'news-intelligence'}),
     async(req, res) => {

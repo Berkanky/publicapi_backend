@@ -65,7 +65,7 @@ var {
 if( !NODE_ENV ) throw "NODE_ENV required. ";
 
 var jwt_token_cookie_expire_date_ms = NODE_ENV == 'production' ? 15 * 60 * 1000 : 50 * 60 * 1000;
-var jwt_token_expire_date_st = NODE_ENV == 'production' ? '15m' : '2m';
+var jwt_token_expire_date_st = NODE_ENV == 'production' ? '15m' : '15m';
 
 var refresh_token_cookie_expire_date_ms = NODE_ENV == 'production' ? 30 * 24 * 60 * 60 * 1000 : 1 * 60 * 60 * 1000;
 
@@ -426,7 +426,7 @@ app.post(
 //Refresh session ile jwt yenileme servisi
 app.get(
     '/refresh',
-    rate_limiter,
+    //rate_limiter,
     create_session_id,
     set_service_action_name({action: 'refresh'}),
     async(req, res) => {
@@ -549,8 +549,11 @@ app.get(
 
                 existing_subscriber = await subscribers.findById(subscriber_id).select("active").lean();
                 active = existing_subscriber.active;
-            } else active = existing_subscriber.active;
 
+            } else active = existing_subscriber.active;
+            
+            console.log(active);
+            console.log(JSON.stringify(existing_subscriber));
             if( !active ) return res.status(400).json({ message:'Please log in again. ', success: false });
             return res.status(200).json({ success: true });
         }catch(err){
@@ -563,7 +566,7 @@ app.get(
 //Hesap bilgisi
 app.get(
     '/auth',
-    rate_limiter,
+    //rate_limiter,
     verify_jwt_token,
     set_service_action_name({action: 'auth'}),
     async(req, res) => {
@@ -587,10 +590,10 @@ app.get(
             }
 
             var existing_subscriber = await subscribers.findById(subscriber_id)
-                .select("verified status login_date login_type subscription_date session_id")
+                .select("verified status login_date login_type subscription_date session_id active")
                 .lean();
             
-            var { verified, status, login_date, login_type, subscription_date } = existing_subscriber;
+            var { verified, status, login_date, login_type, subscription_date, active } = existing_subscriber;
 
             login_date = format_date(login_date);
             subscription_date = format_date(subscription_date);
@@ -605,7 +608,8 @@ app.get(
                 subscription_date,
                 email_address,
                 session_id,
-                avatar
+                avatar,
+                active
             };
             
             await server_cache.set(key, user_data, 86400);

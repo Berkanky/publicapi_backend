@@ -164,7 +164,7 @@ async function insert_phone_number_request(req){
 // -> /phone/lookup //country_iso_code -> 'tr'
 app.post(
   "/phonenumber-intelligence",
-  rate_limiter,
+  //rate_limiter,
   verify_jwt_token,
   set_service_action_name({action: 'phone-lookup'}),
   async(req, res) => {
@@ -273,7 +273,7 @@ app.post(
 
 app.get(
   "/phonenumber-intelligence-history",
-  rate_limiter,
+  //rate_limiter,
   verify_jwt_token,
   set_service_action_name({action: 'phonenumber-intelligence-history'}),
   async(req, res) => {

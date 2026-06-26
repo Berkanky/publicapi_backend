@@ -455,7 +455,7 @@ async function insert_email_request(req){
 
 app.post(
   "/email-intelligence",
-  rate_limiter,
+  //rate_limiter,
   verify_jwt_token,
   set_service_action_name({action: 'email-intelligence'}),
   async(req, res) => {
@@ -496,7 +496,7 @@ app.post(
 
 app.get(
   "/email-intelligence-history",
-  rate_limiter,
+  //rate_limiter,
   verify_jwt_token,
   set_service_action_name({action: 'email-intelligence-history'}),
   async(req, res) => {

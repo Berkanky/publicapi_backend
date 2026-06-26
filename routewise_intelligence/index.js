@@ -37,6 +37,7 @@ var country_reference = require("../schemas/country_reference_schema");
 var routewise_request_schema = require("../joi_schemas/routewise_request_schema");
 var routewise_intelligence_status_detail_schema = require("../joi_schemas/routewise_intelligence_status_detail_schema");
 var routewise_intelligence_detail = require("../joi_schemas/routewise_intelligence_detail_schema");
+var routewise_intelligence_polyline_detail_schema = require("../joi_schemas/routewise_intelligence_polyline_detail_schema");
 
 var sha_256 = require("../encryption_modules/sha_256");
 
@@ -51,7 +52,6 @@ var server_cache = require("../cache");
 //rota hesaplama servisi.
 app.post(
     "/route-intelligence",
-    rate_limiter,
     verify_jwt_token,
     country_control,
     set_service_action_name({action: 'route-detail'}),
@@ -196,7 +196,7 @@ app.post(
 //status detail servisi.
 app.get(
     '/route-intelligence-status-detail/:_id',
-    rate_limiter,
+    //rate_limiter,
     verify_jwt_token,
     set_service_action_name({action: 'routewise-intelligence-detail'}),
     async(req, res) => {
@@ -231,7 +231,7 @@ app.get(
 //detail servisi.
 app.get(
     "/route-intelligence-detail/:_id",
-    rate_limiter,
+    //rate_limiter,
     verify_jwt_token,
     set_service_action_name({action: 'route-intelligence-detail'}),
     compression(),
@@ -273,7 +273,7 @@ app.get(
 
             var routewise_routes_filter = { calculation_hash: calculation_hash };
 
-            var routewise_routes = await routewiseroutes.find(routewise_routes_filter).lean();
+            var routewise_routes = await routewiseroutes.find(routewise_routes_filter).select("-encoded_polyline").lean();
             if( !routewise_routes.length ) return res.status(404).json({ message:' routes not existing.', success: false });
 
             var normalized_routes = [];
@@ -281,13 +281,14 @@ app.get(
 
                 var row = routewise_routes[i];
                 var { 
+                    _id,
                     distance_km, 
                     duration_seconds, 
                     avg_total_cost, 
                     avg_toll_road_cost, 
                     avg_fuel_cost_lt, 
                     fuel_consumed_liters,
-                    encoded_polyline
+                    //encoded_polyline
                 } = row;
 
                 distance_km = format_number(distance_km);
@@ -296,18 +297,19 @@ app.get(
                 avg_fuel_cost_lt = format_number(avg_fuel_cost_lt);
                 fuel_consumed_liters = format_number(fuel_consumed_liters);
 
-                var decoded_polyline = decode_google_encoded_polyline(encoded_polyline);
+                //var decoded_polyline = decode_google_encoded_polyline(encoded_polyline);
                 var duration_normalized = convert_second_to_normalized_string(duration_seconds);
 
                 normalized_routes.push(
                     {
+                        _id: _id,
                         distance_km: distance_km,
                         avg_total_cost: avg_total_cost,
                         avg_toll_road_cost: avg_toll_road_cost,
                         avg_fuel_cost_lt: avg_fuel_cost_lt,
                         fuel_consumed_liters: fuel_consumed_liters,
                         duration_normalized: duration_normalized,
-                        decoded_polyline: decoded_polyline
+                        //decoded_polyline: decoded_polyline
                     }
                 );
             };
@@ -323,10 +325,55 @@ app.get(
     }
 );
 
+//polyline servisi
+app.get(
+    "/polyline-detail/:_id",
+    //rate_limiter,
+    verify_jwt_token,
+    set_service_action_name({name: '/polyline-detail'}),
+    compression(),
+    async(req, res) => {
+
+        var { _id } = req.params;
+
+        var { error } = routewise_intelligence_polyline_detail_schema.validate(req.params, { abortEarly: false });
+        if( error) return res.status(400).json({errors: error.details.map(detail => detail.message), success: false });
+
+        try{    
+
+            var cached_decoded_polyline = {};
+            var key = 'decoded_polyline:' + _id;
+            
+            cached_decoded_polyline = await server_cache.get(key);
+            if( cached_decoded_polyline ) {
+
+                res.set("X-Cache", "HIT");
+                return res.status(200).json({ success: true, decoded_polyline: cached_decoded_polyline });
+            }
+
+            var routewise_route = await routewiseroutes.findById(_id).select("encoded_polyline").lean();
+            if( !routewise_route ) return res.status(404).json({ success: false });    
+
+            var { encoded_polyline } = routewise_route;
+            if( !encoded_polyline ) return res.status(404).json({ success: false });
+
+            var decoded_polyline = decode_google_encoded_polyline(encoded_polyline);
+            await server_cache.set(key, decoded_polyline, 86400);
+
+            return res.status(200).json({ success: true, decoded_polyline: decoded_polyline });
+        }catch(err){
+            console.error(err);
+            console.error(err?.response?.data);
+
+            return { success: false };
+        }
+    }
+);
+
 //Geçmiş requestler
 app.get(
     "/route-history",
-    rate_limiter,
+    //rate_limiter,
     verify_jwt_token,
     set_service_action_name({action: 'history'}),
     async(req, res) => {
