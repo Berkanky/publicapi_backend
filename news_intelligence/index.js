@@ -93,7 +93,7 @@ app.post(
                     job_id: job.id
                 }
             };
-            await news_request.findByIdAndUpdate(created_news_request__id, news_request_update);
+            await news_request.findByIdAndUpdate(created_news_request__id, news_request_update);      
             return res.status(200).json({ message:' news-intelligence service successfully completed.', success: true, _id: created_news_request__id });
         }catch(err){
             console.error(err);

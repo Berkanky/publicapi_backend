@@ -5,6 +5,7 @@ var axios = require('axios');
 var crypto = require('crypto');
 var mongoose = require('mongoose');
 var Queue = require("bullmq").Queue;
+var compression = require("compression");
 
 //bullmq redis connection
 var bullmq_redis = require("../bullmq_redis_connection/bullmq_redis");
@@ -233,6 +234,7 @@ app.get(
     rate_limiter,
     verify_jwt_token,
     set_service_action_name({action: 'route-intelligence-detail'}),
+    compression(),
     async(req, res) => {
 
         var { subscriber_id } = req;
@@ -258,7 +260,13 @@ app.get(
                 .lean();
             if( !existing_routewise_request ) return res.status(404).json({ message:' routewise_request not existing. ', success: false });
 
-            var { calculation_hash, created_date, duration_seconds } = existing_routewise_request;
+            var { calculation_hash, created_date, duration_seconds, currency, fuel_price } = existing_routewise_request;
+            
+            existing_routewise_request.currency.period = format_date(currency.period);
+            existing_routewise_request.currency.rate = format_number(currency.rate);
+
+            existing_routewise_request.fuel_price.period = format_date(fuel_price.period);
+            existing_routewise_request.fuel_price.value = format_number(fuel_price.value);
 
             existing_routewise_request.created_date = format_date(created_date);
             existing_routewise_request.duration_seconds_normalized = convert_second_to_normalized_string(duration_seconds);

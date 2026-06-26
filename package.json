@@ -16,6 +16,7 @@
     "@turf/turf": "^7.3.5",
     "axios": "^1.16.0",
     "bullmq": "^5.71.1",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
