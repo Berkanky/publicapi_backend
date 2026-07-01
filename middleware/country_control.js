@@ -7,8 +7,9 @@ async function country_control(req, res, next){
     var { origin, destination } = req.body;
 
     var { country_alpha_2_code, country_alpha_3_code } = find_country_by_lat_lng(origin.lat, origin.lng);
+    console.log("Origin Country Alpha Code: " + country_alpha_2_code);
     var destination_country_alpha_2_code = find_country_by_lat_lng(destination.lat, destination.lng).country_alpha_2_code;
-
+    console.log("Destination Country Alpha Code: " + destination_country_alpha_2_code);
     if( country_alpha_2_code !== destination_country_alpha_2_code ) return res.status(400).json({ message:' Route calculations can only be performed for locations within the same country.', success: false});
 
     var country_reference_filter = { country_alpha_2_code: country_alpha_2_code };
@@ -30,6 +31,13 @@ async function country_control(req, res, next){
     req.country_name = country_name;
     req.country_alpha_3_code = country_alpha_3_code;
     req.country_alpha_2_code = country_alpha_2_code;
+
+    console.log(JSON.stringify({
+        selected_location_currency_code, 
+        country_name,
+        country_alpha_3_code,
+        country_alpha_2_code
+    }));
     
     return next();
 };
