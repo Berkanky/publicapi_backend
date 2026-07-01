@@ -22,6 +22,10 @@ var news_request_schema = new mongoose.Schema({
         type: Date,
         required: false
     },
+    updated_date:{
+        type: Date,
+        required: false
+    },
     country_alpha_2_code: {
         type: String,
         required: true
@@ -57,6 +61,26 @@ var news_request_schema = new mongoose.Schema({
     request_hash: {
         type: String,
         required: true
+    },
+    frequency:{
+        type: String,
+        required: false
+    },
+    is_scheduled:{
+        type: Boolean,
+        required: false
+    },
+    next_run_date:{
+        type: Date,
+        required: false
+    },
+    schedule_trigger_date:{
+        type: Date,
+        required: false
+    },
+    next_run_job_id:{
+        type: String,
+        required: false
     }
 });
 

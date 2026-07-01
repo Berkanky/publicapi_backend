@@ -21,7 +21,8 @@ function set_cookie_all_paths(req, res, key, token, jwt_token_cookie_expire_date
         "/file-intelligence-detail",
         "/email-intelligence-history",
         "/phonenumber-intelligence-history",
-        "/polyline-detail"
+        "/polyline-detail",
+        "/news-intelligence-detail"
     ];
 
     for(var i = 0; i < authenticated_paths.length; i++){
